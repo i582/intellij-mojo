@@ -12,6 +12,7 @@ enum class MojoColor(displayName: Supplier<String>, fallback: TextAttributesKey)
     MUTABLE_VARIABLE(MojoBundle.messagePointer("settings.mojo.color.variable.mutable"), DefaultLanguageHighlighterColors.REASSIGNED_LOCAL_VARIABLE),
     FIELD(MojoBundle.messagePointer("settings.mojo.color.field"), DefaultLanguageHighlighterColors.INSTANCE_FIELD),
     CONSTANT(MojoBundle.messagePointer("settings.mojo.color.constant"), DefaultLanguageHighlighterColors.CONSTANT),
+    MODULE(MojoBundle.messagePointer("settings.mojo.color.module"), DefaultLanguageHighlighterColors.CLASS_REFERENCE),
 
     FUNCTION(MojoBundle.messagePointer("settings.mojo.color.function.declaration"), DefaultLanguageHighlighterColors.FUNCTION_DECLARATION),
     NESTED_FUNCTION(MojoBundle.messagePointer("settings.mojo.color.function.nested"), DefaultLanguageHighlighterColors.FUNCTION_DECLARATION),

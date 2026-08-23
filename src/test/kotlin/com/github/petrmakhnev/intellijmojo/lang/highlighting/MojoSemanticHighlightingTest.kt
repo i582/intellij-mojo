@@ -107,6 +107,24 @@ class MojoSemanticHighlightingTest : BasePlatformTestCase() {
         assertColor(source, highlights, "parametric_method", 0, MojoColor.METHOD_CALL)
     }
 
+    fun testParametricConstructorKeepsStructColor() {
+        val source = """
+            struct Span[T, origin]:
+                def __init__(out self, *, length: Int):
+                    pass
+
+            def make(dtype, origin):
+                return Span[Scalar[dtype], origin](length=1)
+        """.trimIndent()
+        val file = myFixture.configureByText(MojoFileType, source)
+        val errors = PsiTreeUtil.findChildrenOfType(file, PsiErrorElement::class.java)
+        assertTrue(errors.joinToString { "${it.errorDescription} at ${it.textOffset}" }, errors.isEmpty())
+
+        val highlights = myFixture.doHighlighting()
+        assertColor(source, highlights, "Span", 0, MojoColor.STRUCT)
+        assertColor(source, highlights, "Span", 1, MojoColor.STRUCT)
+    }
+
     fun testBuiltinTypesUseKeywordColor() {
         val source = """
             def convert(value: Int32, text: String, custom: UserType) -> SIMD[DType.float64, 1]:
@@ -123,6 +141,55 @@ class MojoSemanticHighlightingTest : BasePlatformTestCase() {
         assertColor(source, highlights, "DType", 0, MojoColor.BUILTIN_TYPE)
         assertColor(source, highlights, "Float64", 0, MojoColor.BUILTIN_TYPE)
         assertColor(source, highlights, "UserType", 0, MojoColor.TYPE_REFERENCE)
+    }
+
+    fun testResolvedImportsDriveReferenceColors() {
+        myFixture.addFileToProject(
+            "library.mojo",
+            """
+            def `fn`():
+                pass
+
+            struct Model:
+                def __init__(out self):
+                    pass
+
+            comptime ANSWER = 42
+            type Identifier = Int
+            """.trimIndent(),
+        )
+        val source = """
+            import library
+            from library import `fn`, Model, ANSWER, Identifier
+            from library import Model as ImportedModel
+
+            library.`fn`()
+            `fn`()
+            var model: Model
+            var imported: ImportedModel
+            Model()
+            var answer = ANSWER
+            var identifier: Identifier
+        """.trimIndent()
+        val file = myFixture.configureByText(MojoFileType, source)
+        val errors = PsiTreeUtil.findChildrenOfType(file, PsiErrorElement::class.java)
+        assertTrue(errors.joinToString { "${it.errorDescription} at ${it.textOffset}" }, errors.isEmpty())
+
+        val highlights = myFixture.doHighlighting()
+        assertColor(source, highlights, "library", 3, MojoColor.MODULE)
+        assertColor(source, highlights, "`fn`", 0, MojoColor.FUNCTION)
+        assertColor(source, highlights, "`fn`", 1, MojoColor.FUNCTION_CALL)
+        assertColor(source, highlights, "`fn`", 2, MojoColor.FUNCTION_CALL)
+        assertColor(source, highlights, "Model", 0, MojoColor.STRUCT)
+        assertColor(source, highlights, "Model", 1, MojoColor.STRUCT)
+        assertColor(source, highlights, "Model", 2, MojoColor.STRUCT)
+        assertColor(source, highlights, "Model", 3, MojoColor.STRUCT)
+        assertColor(source, highlights, "ImportedModel", 0, MojoColor.STRUCT)
+        assertColor(source, highlights, "ImportedModel", 1, MojoColor.STRUCT)
+        assertColor(source, highlights, "ANSWER", 0, MojoColor.CONSTANT)
+        assertColor(source, highlights, "ANSWER", 1, MojoColor.CONSTANT)
+        assertColor(source, highlights, "Identifier", 0, MojoColor.TYPE_ALIAS)
+        assertColor(source, highlights, "Identifier", 1, MojoColor.TYPE_REFERENCE)
     }
 
     private fun assertColor(
@@ -145,8 +212,17 @@ class MojoSemanticHighlightingTest : BasePlatformTestCase() {
     }
 
     private fun occurrenceOffset(source: String, text: String, occurrence: Int): Int {
-        val matches = Regex("\\b${Regex.escape(text)}\\b").findAll(source).toList()
-        return matches.getOrNull(occurrence)?.range?.first
-            ?: error("Cannot find occurrence $occurrence of `$text`")
+        if (text.firstOrNull()?.isLetterOrDigit() == true && text.lastOrNull()?.isLetterOrDigit() == true) {
+            val matches = Regex("\\b${Regex.escape(text)}\\b").findAll(source).toList()
+            return matches.getOrNull(occurrence)?.range?.first
+                ?: error("Cannot find occurrence $occurrence of `$text`")
+        }
+
+        var offset = -1
+        repeat(occurrence + 1) {
+            offset = source.indexOf(text, offset + 1)
+            if (offset < 0) error("Cannot find occurrence $occurrence of `$text`")
+        }
+        return offset
     }
 }

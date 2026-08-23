@@ -1,5 +1,6 @@
 package com.github.petrmakhnev.intellijmojo.lang.parser
 
+import com.github.petrmakhnev.intellijmojo.lang.MojoFileElementType
 import com.github.petrmakhnev.intellijmojo.lang.MojoLanguage
 import com.github.petrmakhnev.intellijmojo.lang.lexer.MojoIndentingLexer
 import com.github.petrmakhnev.intellijmojo.lang.lexer.MojoTokenSets
@@ -14,7 +15,6 @@ import com.intellij.psi.FileViewProvider
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.TokenType
-import com.intellij.psi.tree.IFileElementType
 import com.intellij.psi.tree.TokenSet
 
 class MojoParserDefinition : ParserDefinition {
@@ -22,7 +22,7 @@ class MojoParserDefinition : ParserDefinition {
 
     override fun createParser(project: Project?): PsiParser = MojoParser()
 
-    override fun getFileNodeType(): IFileElementType = FILE
+    override fun getFileNodeType() = MojoFileElementType
 
     override fun getWhitespaceTokens(): TokenSet = WHITESPACE
 
@@ -40,7 +40,6 @@ class MojoParserDefinition : ParserDefinition {
     ): ParserDefinition.SpaceRequirements = ParserDefinition.SpaceRequirements.MAY
 
     companion object {
-        private val FILE = IFileElementType(MojoLanguage)
         private val WHITESPACE = TokenSet.create(TokenType.WHITE_SPACE, MojoTypes.LINE_BREAK)
     }
 }

@@ -195,11 +195,13 @@ SelectiveImportStatement ::= 'from' RelativeModule 'import' ImportTargets {pin=1
 FutureImportStatement ::= 'from' FutureModule 'import' ImportTargets {pin=1}
 
 private FutureModule ::= IDENTIFIER
-private RelativeModule ::= '.'* DottedName?
+RelativeModule ::= '.'* DottedName?
 private ImportTargets ::= '*' | ImportItemList | '(' ImportItemList ')'
 private ImportItemList ::= ImportItem (',' ImportItem)* ','?
-private ImportItem ::= DottedName ('as' NameIdentifier)?
-DottedName ::= NameIdentifier ('.' NameIdentifier)*
+ImportItem ::= DottedName ('as' NameIdentifier)?
+DottedName ::= NameIdentifier ('.' NameIdentifier)* {
+  mixin="com.github.petrmakhnev.intellijmojo.lang.psi.impl.MojoDottedNameMixin"
+}
 
 AssertStatement ::= 'comptime'? 'assert' ExpressionSequence {pin=2}
 ReturnStatement ::= 'return' ExpressionSequence? {pin=1}
@@ -214,7 +216,13 @@ NonlocalStatement ::= 'nonlocal' NameIdentifier (',' NameIdentifier)* {pin=1}
 ComptimeStatement ::= ('comptime' | 'type') DeclarationName TypeParameterList?
                        TypeAnnotation?
                        WhereClause*
-                       ('=' ComptimeRhs)? {pin=1}
+                       ('=' ComptimeRhs)? {
+  pin=1
+  mixin="com.github.petrmakhnev.intellijmojo.lang.psi.impl.MojoComptimeStatementMixin"
+  implements="com.github.petrmakhnev.intellijmojo.lang.psi.MojoNamedElement"
+  stubClass="com.github.petrmakhnev.intellijmojo.lang.stub.MojoComptimeStub"
+  elementTypeFactory="com.github.petrmakhnev.intellijmojo.lang.psi.MojoElementTypeFactory.stubFactory"
+}
 
 AssignmentStatement ::= DeclarationConvention? AssignmentTarget TypeAnnotation? '=' AssignmentRhs ('=' AssignmentRhs)*
                        | DeclarationConvention ConstrainedTarget
@@ -259,7 +267,13 @@ private Suite ::= SimpleStatementList | STATEMENT_BREAK INDENT Statement* DEDENT
 
 // Declarations
 
-FunctionDeclaration ::= FunctionSignature ':' Suite {pin=1}
+FunctionDeclaration ::= FunctionSignature ':' Suite {
+  pin=1
+  mixin="com.github.petrmakhnev.intellijmojo.lang.psi.impl.MojoFunctionDeclarationMixin"
+  implements="com.github.petrmakhnev.intellijmojo.lang.psi.MojoNamedElement"
+  stubClass="com.github.petrmakhnev.intellijmojo.lang.stub.MojoFunctionStub"
+  elementTypeFactory="com.github.petrmakhnev.intellijmojo.lang.psi.MojoElementTypeFactory.stubFactory"
+}
 FunctionSignature ::= 'async'? ('def' | 'fn') DeclarationName TypeParameterList?
                        CallableParameters FunctionEffects? CaptureParameters?
                        ReturnType? WhereClause* {pin=2}
@@ -270,12 +284,36 @@ RaisesEffect ::= 'raises' TypeExpression?
 AbiEffect ::= 'abi' '(' StringValue ')'
 ReturnType ::= '->' ParameterizedRefConvention? TypeExpression {pin=1}
 
-StructDeclaration ::= StructHeader ':' Suite {pin=1}
+StructDeclaration ::= StructHeader ':' Suite {
+  pin=1
+  mixin="com.github.petrmakhnev.intellijmojo.lang.psi.impl.MojoStructDeclarationMixin"
+  implements=[
+    "com.github.petrmakhnev.intellijmojo.lang.psi.MojoNamedElement"
+    "com.github.petrmakhnev.intellijmojo.lang.psi.MojoTypeSymbol"
+  ]
+  stubClass="com.github.petrmakhnev.intellijmojo.lang.stub.MojoStructStub"
+  elementTypeFactory="com.github.petrmakhnev.intellijmojo.lang.psi.MojoElementTypeFactory.stubFactory"
+}
 StructHeader ::= ('struct' | 'class') DeclarationName TypeParameterList? Conformance? WhereClause* {pin=1}
-TraitDeclaration ::= 'trait' DeclarationName TypeParameterList? Conformance? WhereClause* ':' Suite {pin=1}
+TraitDeclaration ::= 'trait' DeclarationName TypeParameterList? Conformance? WhereClause* ':' Suite {
+  pin=1
+  mixin="com.github.petrmakhnev.intellijmojo.lang.psi.impl.MojoTraitDeclarationMixin"
+  implements=[
+    "com.github.petrmakhnev.intellijmojo.lang.psi.MojoNamedElement"
+    "com.github.petrmakhnev.intellijmojo.lang.psi.MojoTypeSymbol"
+  ]
+  stubClass="com.github.petrmakhnev.intellijmojo.lang.stub.MojoTraitStub"
+  elementTypeFactory="com.github.petrmakhnev.intellijmojo.lang.psi.MojoElementTypeFactory.stubFactory"
+}
 ExtensionDeclaration ::= '__extension' TypeExpression TypeParameterList? WhereClause* ':' Suite {pin=1}
 
-MlirRegionDeclaration ::= '__mlir_region' DeclarationName CallableParameters ':' Suite {pin=1}
+MlirRegionDeclaration ::= '__mlir_region' DeclarationName CallableParameters ':' Suite {
+  pin=1
+  mixin="com.github.petrmakhnev.intellijmojo.lang.psi.impl.MojoMlirRegionDeclarationMixin"
+  implements="com.github.petrmakhnev.intellijmojo.lang.psi.MojoNamedElement"
+  stubClass="com.github.petrmakhnev.intellijmojo.lang.stub.MojoMlirRegionStub"
+  elementTypeFactory="com.github.petrmakhnev.intellijmojo.lang.psi.MojoElementTypeFactory.stubFactory"
+}
 
 DecoratedDeclaration ::= Decorator+ DecoratorTarget {pin=1}
 Decorator ::= '@' Expression STATEMENT_BREAK {pin=1}
@@ -294,10 +332,12 @@ Conformance ::= '(' (ConformanceParameter (',' ConformanceParameter)* ','?)? ')'
 private ParameterList ::= ParameterDeclaration (',' ParameterDeclaration)* ','?
 
 ParameterDeclaration ::= PositionalOnlyMarker
-                        | KeywordOnlyMarker
                         | InferOnlyMarker
-                        | Convention? VariadicMarker? NameIdentifier ConventionParameters?
+                        | Convention VariadicMarker? NameIdentifier ConventionParameters?
                           TypeAnnotation? DefaultValue?
+                        | VariadicMarker? NameIdentifier ConventionParameters?
+                          TypeAnnotation? DefaultValue?
+                        | KeywordOnlyMarker
 
 CaptureParameter ::= RefConvention ParameterDeclaration?
                     | ParameterDeclaration '^'
@@ -312,15 +352,17 @@ private PositionalOnlyMarker ::= '/'
 private KeywordOnlyMarker ::= '*'
 private InferOnlyMarker ::= '//'
 
-private Convention ::= 'deinit' | 'out' | 'var' | RefConvention | ParameterizedRefConvention | 'owned' | 'read'
+private Convention ::= 'deinit' | 'out' | 'var' | ParameterizedRefConvention | RefConvention | 'owned' | 'read'
 private RefConvention ::= 'imm' | 'mut' | 'ref'
 ParameterizedRefConvention ::= 'ref' ConventionParameters
 ConventionParameters ::= '[' (TypeExpression | '_') (',' (TypeExpression | '_'))* ','? ']'
 
 WhereClause ::= 'where' (MlirAttribute | Expression) {pin=1}
 
-FunctionType ::= 'def' TypeParameterList? CallableParameters FunctionEffects? ReturnType? WhereClause*
+FunctionType ::= 'def' TypeParameterList? FunctionTypeParameters FunctionEffects? ReturnType? WhereClause*
 ParenthesizedFunctionType ::= '(' FunctionType ')'
+private FunctionTypeParameters ::= '(' (FunctionTypeParameter (',' FunctionTypeParameter)* ','?)? ')'
+private FunctionTypeParameter ::= ParameterDeclaration | TypeExpression
 
 // MLIR forms
 
@@ -437,7 +479,9 @@ PowerBinOp ::= '**'
 
 CallExpression ::= Expression ArgumentList {rightAssociative=true}
 SubscriptExpression ::= Expression SubscriptSuffix
-MemberExpression ::= Expression MemberSuffix
+MemberExpression ::= Expression MemberSuffix {
+  mixin="com.github.petrmakhnev.intellijmojo.lang.psi.impl.MojoMemberExpressionMixin"
+}
 TransferExpression ::= Expression TransferSuffix
 
 private MemberSuffix ::= '.' NameIdentifier
@@ -448,7 +492,9 @@ private ArgumentItems ::= Argument (',' Argument)* ','? ComprehensionClauses?
 Argument ::= '**' Expression | '*' Expression | NamedParameter | Expression
 
 private SubscriptSuffix ::= '[' (SubscriptItem (',' SubscriptItem)* ','?)? ']'
-SubscriptItem ::= SliceExpression | '*' TypeExpression | '**' TypeExpression | NamedParameter | FunctionType | Expression
+SubscriptItem ::= SliceExpression | '*' TypeExpression | '**' TypeExpression
+                  | NamedSliceExpression | NamedParameter | FunctionType | Expression
+private NamedSliceExpression ::= NameIdentifier '=' SliceExpression
 SliceExpression ::= Expression? ':' Expression? (':' Expression?)?
 
 private AtomicExpression ::= LiteralExpression
@@ -461,7 +507,9 @@ private AtomicExpression ::= LiteralExpression
                | ListExpression
                | BraceExpression
 
-ReferenceExpression ::= NameIdentifier
+ReferenceExpression ::= NameIdentifier {
+  mixin="com.github.petrmakhnev.intellijmojo.lang.psi.impl.MojoReferenceExpressionMixin"
+}
 UnderscoreExpression ::= '_'
 
 LiteralExpression ::= INTEGER_LITERAL | FLOAT_LITERAL | StringValue
@@ -506,7 +554,9 @@ NameIdentifier ::= IDENTIFIER | ESCAPED_IDENTIFIER | 'match'
                   | 'case'
                   | 'alias' | 'deinit' | 'out' | 'imm' | 'mut' | 'raises'
                   | 'read' | 'owned' | 'thin' | 'abi' | 'capturing' | 'escaping'
-                  | 'type' | 'fn'
+                  | 'type' | 'fn' {
+  mixin="com.github.petrmakhnev.intellijmojo.lang.psi.impl.MojoNameIdentifierMixin"
+}
 
 private ExpressionStart ::= INTEGER_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPLATE_STRING_LITERAL
                            | 'True' | 'False' | 'None' | 'Self' | '...' | IDENTIFIER | ESCAPED_IDENTIFIER

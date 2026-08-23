@@ -5,13 +5,13 @@ import com.github.petrmakhnev.intellijmojo.lang.psi.*
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.annotation.HighlightSeverity
-import com.intellij.openapi.project.DumbAware
+import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiPolyVariantReference
 import com.intellij.psi.util.PsiTreeUtil
 
-/** Applies semantic colors without resolving names. */
-class MojoSemanticAnnotator : Annotator, DumbAware {
+class MojoSemanticAnnotator : Annotator {
     override fun annotate(element: PsiElement, holder: AnnotationHolder) {
         val name = element as? MojoNameIdentifier ?: return
         val color = colorFor(name) ?: return
@@ -27,10 +27,14 @@ class MojoSemanticAnnotator : Annotator, DumbAware {
             is MojoDeclarationName -> declarationColor(parent)
             is MojoParameterDeclaration -> parameterColor(parent)
             is MojoNamedParameter -> MojoColor.KEYWORD_ARGUMENT
+            is MojoImportItem -> resolvedColor(name, importSite = true)
             is MojoMemberExpression -> memberColor(parent)
             is MojoReferenceExpression -> referenceColor(parent)
-            is MojoClassPattern -> typeColor(name.text)
-            else -> bindingColor(name) ?: if (isTypeName(name)) typeColor(name.text) else null
+            is MojoClassPattern -> resolvedColor(name) ?: typeColor(name.text)
+            is MojoDottedName -> resolvedColor(name, importSite = true)
+            else -> bindingColor(name)
+                ?: resolvedColor(name)
+                ?: if (isTypeName(name)) typeColor(name.text) else null
         }
     }
 
@@ -73,16 +77,119 @@ class MojoSemanticAnnotator : Annotator, DumbAware {
     }
 
     private fun memberColor(member: MojoMemberExpression): MojoColor =
-        if (isCallTarget(member)) MojoColor.METHOD_CALL else MojoColor.FIELD
+        resolvedColor(member.nameIdentifier, isCallTarget(member))
+            ?: if (isCallTarget(member)) MojoColor.METHOD_CALL else MojoColor.FIELD
 
     private fun referenceColor(reference: MojoReferenceExpression): MojoColor? {
         val name = reference.nameIdentifier
         if (isDecoratorName(name)) return MojoColor.DECORATOR
-        if (name.text in BUILTIN_TYPE_NAMES) return MojoColor.BUILTIN_TYPE
+        if (name.identifierText() in BUILTIN_TYPE_NAMES) return MojoColor.BUILTIN_TYPE
+        resolvedColor(name, isCallTarget(reference))?.let { return it }
         if (isTypeName(name)) return MojoColor.TYPE_REFERENCE
         if (isCallTarget(reference)) return MojoColor.FUNCTION_CALL
         return null
     }
+
+    private fun resolvedColor(
+        name: MojoNameIdentifier,
+        callSite: Boolean = false,
+        importSite: Boolean = false,
+    ): MojoColor? = resolveTargets(name).firstNotNullOfOrNull { target ->
+        targetColor(target, name.identifierText(), callSite, isTypeName(name), importSite)
+    }
+
+    private fun resolveTargets(name: MojoNameIdentifier): List<PsiElement> {
+        val importItem = name.parent as? MojoImportItem
+        val aliasReferences = importItem
+            ?.takeIf { it.nameIdentifier == name }
+            ?.dottedName
+            ?.references
+            ?.takeLast(1)
+        val owner = when (val parent = name.parent) {
+            is MojoReferenceExpression -> parent
+            is MojoMemberExpression -> parent
+            is MojoDottedName -> parent
+            else -> name
+        }
+        val offset = name.textOffset - owner.textOffset
+        val references = aliasReferences ?: owner.references
+            .filter { offset >= it.rangeInElement.startOffset && offset < it.rangeInElement.endOffset }
+        return references
+            .flatMap { reference ->
+                if (reference is PsiPolyVariantReference) {
+                    reference.multiResolve(false).mapNotNull { it.element }
+                } else {
+                    listOfNotNull(reference.resolve())
+                }
+            }
+            .distinctBy { target ->
+                "${target.containingFile?.virtualFile?.path}:${target.textOffset}:${target.javaClass.name}"
+            }
+    }
+
+    private fun targetColor(
+        target: PsiElement,
+        sourceName: String,
+        callSite: Boolean,
+        typeSite: Boolean,
+        importSite: Boolean,
+    ): MojoColor? = when (target) {
+        is MojoFunctionDeclaration -> when {
+            callSite && target.name == "__init__" && sourceName != "__init__" -> MojoColor.STRUCT
+            callSite -> functionCallColor(target)
+            else -> functionColor(target)
+        }
+        is MojoStructDeclaration -> MojoColor.STRUCT
+        is MojoTraitDeclaration -> if (importSite) MojoColor.TRAIT else MojoColor.TYPE_REFERENCE
+        is MojoComptimeStatement -> if (target.hasToken(MojoTypes.TYPE)) {
+            if (importSite) MojoColor.TYPE_ALIAS else MojoColor.TYPE_REFERENCE
+        } else {
+            MojoColor.CONSTANT
+        }
+        is MojoMlirRegionDeclaration -> MojoColor.MLIR_SYMBOL
+        is MojoNameIdentifier -> targetIdentifierColor(target, sourceName, callSite, typeSite, importSite)
+        is PsiFile, is PsiDirectory -> MojoColor.MODULE
+        else -> null
+    }
+
+    private fun targetIdentifierColor(
+        target: MojoNameIdentifier,
+        sourceName: String,
+        callSite: Boolean,
+        typeSite: Boolean,
+        importSite: Boolean,
+    ): MojoColor? {
+        return when (val parent = target.parent) {
+            is MojoDeclarationName -> when (val declaration = parent.parent) {
+                is MojoFunctionSignature -> {
+                    val function = declaration.parent as? MojoFunctionDeclaration
+                    when {
+                        callSite && function?.name == "__init__" && sourceName != "__init__" -> MojoColor.STRUCT
+                        callSite -> functionCallColor(function)
+                        else -> functionColor(function)
+                    }
+                }
+                is MojoStructHeader -> MojoColor.STRUCT
+                is MojoTraitDeclaration -> if (importSite) MojoColor.TRAIT else MojoColor.TYPE_REFERENCE
+                is MojoComptimeStatement -> if (declaration.hasToken(MojoTypes.TYPE)) {
+                    if (importSite) MojoColor.TYPE_ALIAS else MojoColor.TYPE_REFERENCE
+                } else {
+                    MojoColor.CONSTANT
+                }
+                is MojoMlirRegionDeclaration -> MojoColor.MLIR_SYMBOL
+                else -> null
+            }
+            is MojoParameterDeclaration -> parameterColor(parent)
+            else -> bindingColor(target) ?: if (typeSite) typeColor(target.text) else null
+        }
+    }
+
+    private fun functionCallColor(function: MojoFunctionDeclaration?): MojoColor =
+        if (functionColor(function) == MojoColor.METHOD) {
+            MojoColor.METHOD_CALL
+        } else {
+            MojoColor.FUNCTION_CALL
+        }
 
     private fun bindingColor(name: MojoNameIdentifier): MojoColor? {
         if (isAssignmentTargetField(name)) return MojoColor.FIELD
@@ -152,7 +259,9 @@ class MojoSemanticAnnotator : Annotator, DumbAware {
     private fun isTypeName(name: MojoNameIdentifier): Boolean = parentOf<MojoTypeExpression>(name) != null
 
     private fun typeColor(name: String): MojoColor =
-        if (name in BUILTIN_TYPE_NAMES) MojoColor.BUILTIN_TYPE else MojoColor.TYPE_REFERENCE
+        if (name.removeSurrounding("`") in BUILTIN_TYPE_NAMES) MojoColor.BUILTIN_TYPE else MojoColor.TYPE_REFERENCE
+
+    private fun MojoNameIdentifier.identifierText(): String = text.removeSurrounding("`")
 
     private fun nearestScopeOwner(element: PsiElement): PsiElement? {
         var ancestor = element.parent
@@ -171,7 +280,6 @@ class MojoSemanticAnnotator : Annotator, DumbAware {
         PsiTreeUtil.getParentOfType(element, T::class.java, true)
 
     private companion object {
-        /** Names that receive keyword-style highlighting without resolution. */
         val BUILTIN_TYPE_NAMES = setOf(
             "Bool",
             "Byte",

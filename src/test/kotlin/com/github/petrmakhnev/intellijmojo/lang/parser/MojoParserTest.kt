@@ -147,13 +147,277 @@ class MojoParserTest : BasePlatformTestCase() {
         assertNoParserErrors(file)
     }
 
+    fun testParameterizedWritableStruct() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct _Indent[W: Writable, origin: ImmOrigin](Writable):
+                ""${'"'}Indents the given writable by the given level.""${'"'}
+
+                comptime IndentStr = "  "
+
+                var writable: Pointer[Self.W, Self.origin]
+                var level: Int
+
+                def __init__(out self, ref[Self.origin] w: Self.W, *, level: Int):
+                    self.writable = Pointer(to=w)
+                    self.level = level
+
+                def write_to(self, mut writer: Some[Writer]):
+                    for _ in range(self.level):
+                        writer.write(Self.IndentStr)
+                    writer.write(self.writable[])
+            """.trimIndent(),
+        )
+
+        assertNoParserErrors(file)
+    }
+
+    fun testConventionParameters() {
+        val signatures = listOf(
+            "def f(out self):",
+            "def f(ref[Int] w: Int):",
+            "def f(ref[Self] w: Self):",
+            "def f(ref[Self.origin] w: Self.W):",
+            "def f(*, level: Int):",
+            "def f(out self, ref[Self.origin] w: Self.W):",
+            "def f(out self, ref[Self.origin] w: Self.W, *, level: Int):",
+        )
+
+        for (signature in signatures) {
+            val file = myFixture.configureByText(MojoFileType, "$signature\n    pass\n")
+            try {
+                assertNoParserErrors(file)
+            } catch (error: AssertionError) {
+                throw AssertionError("Failed signature: $signature\n${error.message}", error)
+            }
+        }
+    }
+
+    fun testVariadicTypeParameter() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            def _all_types_unique[*Ts: AnyType]() -> Bool:
+                ""${'"'}Check if all types in the variadic pack are unique.
+
+                Returns True if no type appears more than once, False otherwise.
+                ""${'"'}
+
+                comptime for i in range(Ts.length):
+                    comptime for j in range(i + 1, Ts.length):
+                        if Ts[i] == Ts[j]:
+                            return False
+                return True
+            """.trimIndent(),
+        )
+
+        assertNoParserErrors(file)
+    }
+
+    fun testInferOnlyMarkerInStructParameters() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            @fieldwise_init
+            struct _SpanIter[
+                mut: Bool,
+                //,
+                T: Copyable,
+                origin: Origin[mut=mut],
+                forward: Bool = True,
+            ](ImplicitlyCopyable, Iterable, IterableOwned, Iterator, Sized):
+                pass
+            """.trimIndent(),
+        )
+
+        assertNoParserErrors(file)
+    }
+
+    fun testStructWithDefaultTypeParameterAndMultilineConformance() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct CompilationTarget[value: _TargetType = _current_target()](
+                TrivialRegisterPassable
+            ):
+                ${'"'}${'"'}${'"'}A struct that provides information about a target architecture.${'"'}${'"'}${'"'}
+
+                def __init__(out self):
+                    ${'"'}${'"'}${'"'}Initialize a `CompilationTarget` with the default target.${'"'}${'"'}${'"'}
+                    pass
+            """.trimIndent(),
+        )
+
+        assertNoParserErrors(file)
+    }
+
+    fun testStructWithInferOnlyAndKeywordOnlyTypeParameters() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            @stable(since="1.0")
+            struct Pointer[
+                mut: Bool,
+                //,
+                T: AnyType,
+                origin: Origin[mut=mut],
+                *,
+                address_space: AddressSpace = AddressSpace.GENERIC,
+            ](
+                Comparable,
+                DevicePassable,
+                ImplicitlyCopyable,
+                Intable,
+                TrivialRegisterPassable,
+                UnsafeCustomNicheStorage,
+                UnsafeSingleNicheable,
+                Writable,
+            ):
+                pass
+            """.trimIndent(),
+        )
+
+        assertNoParserErrors(file)
+    }
+
+    fun testConditionalConformances() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            @stable(since="1.0")
+            struct Span[
+                mut: Bool,
+                //,
+                T: AnyType,
+                origin: Origin[mut=mut],
+                *,
+                address_space: AddressSpace = AddressSpace.GENERIC,
+            ](
+                Boolable,
+                Defaultable,
+                DevicePassable where address_space == AddressSpace.GENERIC,
+                Hashable where (
+                    conforms_to(T, Hashable) and address_space == AddressSpace.GENERIC
+                ),
+                ImplicitlyCopyable,
+                Iterable where address_space == AddressSpace.GENERIC,
+                IterableOwned where (
+                    conforms_to(T, Copyable) and address_space == AddressSpace.GENERIC
+                ),
+                Sized,
+                TrivialRegisterPassable,
+                Writable where (
+                    conforms_to(T, Writable) and address_space == AddressSpace.GENERIC
+                ),
+            ):
+                pass
+            """.trimIndent(),
+        )
+
+        assertNoParserErrors(file)
+    }
+
+    fun testFunctionTypeWithUnnamedParameterTypes() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            def write[
+                callback: def(Self.T, mut Some[Writer]) thin,
+                predicate: def(Int, Int, /) thin -> Bool,
+                update: def(value: Optional[Self.T]) raises -> Self.T,
+            ]():
+                pass
+            """.trimIndent(),
+        )
+
+        assertNoParserErrors(file)
+    }
+
+    fun testMacosVersionSyntax() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            @always_inline
+            def _macos_version() raises -> Tuple[Int, Int, Int]:
+                ${'"'}${'"'}${'"'}Gets the macOS version.
+
+                Returns:
+                    The version triple of macOS.
+                ${'"'}${'"'}${'"'}
+
+                comptime assert (
+                    CompilationTarget.is_macos()
+                ), "the operating system must be macOS"
+
+                comptime INITIAL_CAPACITY = 32
+
+                var buf_len = Int(INITIAL_CAPACITY)
+                var osver = String(unsafe_uninit_length=buf_len)
+
+                var err = external_call["sysctlbyname", Int32](
+                    "kern.osproductversion".as_c_string_slice(),
+                    osver.unsafe_as_bytes_mut().unsafe_ptr(),
+                    Pointer(to=buf_len),
+                    Optional[Pointer[NoneType, MutAnyOrigin]](),
+                    Int(0),
+                )
+                if err:
+                    raise "Unable to query macOS version"
+
+                osver.resize(buf_len)
+
+                var major = 0
+                var minor = 0
+                var patch = 0
+
+                if "." in osver:
+                    major = Int(osver[byte = : osver.find(".")])
+                    var rest_major = String(osver[byte = osver.find(".") + 1 :])
+                    osver = rest_major^
+
+                if "." in osver:
+                    minor = Int(osver[byte = : osver.find(".")])
+                    var rest_minor = String(osver[byte = osver.find(".") + 1 :])
+                    osver = rest_minor^
+
+                if "." in osver:
+                    patch = Int(osver[byte = : osver.find(".")])
+
+                return (major, minor, patch)
+            """.trimIndent(),
+        )
+
+        assertNoParserErrors(file)
+    }
+
     fun testGpuPerformanceCounterSyntaxParts() {
         val cases = mapOf(
             "decorator" to "@always_inline\ndef f():\n    pass\n",
+            "raises return type" to "def f() raises -> Tuple[Int, Int, Int]:\n    pass\n",
             "return type" to "def f() -> SIMD[DType.uint64, 1]:\n    pass\n",
             "docstring" to "def f():\n    \"\"\"first line\n    second line\n    \"\"\"\n    pass\n",
             "comptime if" to "def f():\n    comptime if is_nvidia_gpu():\n        pass\n    elif is_amd_gpu():\n        pass\n",
             "generic call" to "def f():\n    return llvm_intrinsic[\"name\", UInt64, has_side_effect=True,]()\n",
+        )
+        for ((name, source) in cases) {
+            val file = myFixture.configureByText(MojoFileType, source)
+            try {
+                assertNoParserErrors(file)
+            } catch (error: AssertionError) {
+                throw AssertionError("Failed syntax part: $name\n${error.message}", error)
+            }
+        }
+    }
+
+    fun testMacosVersionSyntaxParts() {
+        val cases = mapOf(
+            "comptime assert" to "def f():\n    comptime assert (Target.is_macos()), \"macOS required\"\n",
+            "comptime binding" to "def f():\n    comptime INITIAL_CAPACITY = 32\n",
+            "nested generic call" to "def f():\n    return Optional[Pointer[NoneType, MutAnyOrigin]]()\n",
+            "named slice from start" to "def f(osver):\n    return osver[byte = : osver.find(\".\")]\n",
+            "named slice to end" to "def f(osver):\n    return osver[byte = osver.find(\".\") + 1 :]\n",
+            "transfer" to "def f(rest):\n    value = rest^\n",
         )
         for ((name, source) in cases) {
             val file = myFixture.configureByText(MojoFileType, source)

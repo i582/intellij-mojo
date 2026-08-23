@@ -37,7 +37,19 @@
         <lang.quoteHandler
                 language="Mojo"
                 implementationClass="com.github.petrmakhnev.intellijmojo.lang.editor.MojoQuoteHandler"/>
+        <lang.findUsagesProvider
+                language="Mojo"
+                implementationClass="com.github.petrmakhnev.intellijmojo.lang.ide.MojoFindUsagesProvider"/>
         <indexPatternBuilder
                 implementation="com.github.petrmakhnev.intellijmojo.lang.indexing.MojoIndexPatternBuilder"/>
+        <stubIndex implementation="com.github.petrmakhnev.intellijmojo.lang.stub.index.MojoNamedElementIndex"/>
+        <stubIndex implementation="com.github.petrmakhnev.intellijmojo.lang.stub.index.MojoFunctionIndex"/>
+        <stubIndex implementation="com.github.petrmakhnev.intellijmojo.lang.stub.index.MojoTypeIndex"/>
+        <stubIndex implementation="com.github.petrmakhnev.intellijmojo.lang.stub.index.MojoStructIndex"/>
+        <stubIndex implementation="com.github.petrmakhnev.intellijmojo.lang.stub.index.MojoTraitIndex"/>
+        <stubIndex implementation="com.github.petrmakhnev.intellijmojo.lang.stub.index.MojoModuleIndex"/>
+        <stubElementTypeHolder
+                class="com.github.petrmakhnev.intellijmojo.lang.psi.MojoTypes"
+                externalIdPrefix="mojo."/>
     </extensions>
 </idea-plugin>

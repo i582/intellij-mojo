@@ -8,5 +8,16 @@ import com.intellij.psi.FileViewProvider
 class MojoFile(viewProvider: FileViewProvider) : PsiFileBase(viewProvider, MojoLanguage) {
     override fun getFileType() = MojoFileType
 
+    val moduleName: String
+        get() = if (name == PACKAGE_INITIALIZER) {
+            virtualFile?.parent?.name.orEmpty()
+        } else {
+            name.removeSuffix(".${MojoFileType.defaultExtension}")
+        }
+
     override fun toString(): String = "Mojo File"
+
+    companion object {
+        const val PACKAGE_INITIALIZER = "__init__.mojo"
+    }
 }
