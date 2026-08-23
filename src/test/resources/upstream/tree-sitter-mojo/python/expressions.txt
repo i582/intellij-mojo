@@ -1,0 +1,1093 @@
+================================================================================
+Identifiers with Greek letters
+================================================================================
+
+ψ1 = β_γ + Ψ_5
+
+--------------------------------------------------------------------------------
+
+(module
+  (assignment
+    left: (identifier)
+    right: (binary_operator
+      left: (identifier)
+      right: (identifier))))
+
+================================================================================
+Subscript expressions
+================================================================================
+
+a[1]
+b[2, 3]
+c[4, 5,]
+
+--------------------------------------------------------------------------------
+
+(module
+  (subscript
+    (identifier)
+    (parameters
+      (integer)))
+  (subscript
+    (identifier)
+    (parameters
+      (integer)
+      (integer)))
+  (subscript
+    (identifier)
+    (parameters
+      (integer)
+      (integer))))
+
+================================================================================
+Subscript slice expressions
+================================================================================
+
+a[:]
+b[5:]
+b[5:6, ...]
+c[::]
+
+--------------------------------------------------------------------------------
+
+(module
+  (subscript
+    (identifier)
+    (parameters
+      (slice)))
+  (subscript
+    (identifier)
+    (parameters
+      (slice
+        (integer))))
+  (subscript
+    (identifier)
+    (parameters
+      (slice
+        (integer)
+        (integer))
+      (ellipsis)))
+  (subscript
+    (identifier)
+    (parameters
+      (slice))))
+
+================================================================================
+Attribute references
+================================================================================
+
+a.b.c
+
+--------------------------------------------------------------------------------
+
+(module
+  (member_access
+    value: (identifier)
+    member: (identifier)
+    member: (identifier)))
+
+================================================================================
+Await expressions
+================================================================================
+
+await i(j, 5)
+return await i(j, 5)
+async def region_exists(region: str) -> bool:
+    return region in await all_regions()
+
+assert await a(b) == c
+
+--------------------------------------------------------------------------------
+
+(module
+  (await
+    (call
+      function: (identifier)
+      arguments: (arguments
+        (identifier)
+        (integer))))
+  (return_statement
+    (await
+      (call
+        function: (identifier)
+        arguments: (arguments
+          (identifier)
+          (integer)))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier))))
+      return_type: (parameter
+        (identifier)))
+    body: (block
+      (return_statement
+        (comparison_operator
+          (identifier)
+          (await
+            (call
+              function: (identifier)
+              arguments: (arguments)))))))
+  (assert_statement
+    (comparison_operator
+      (await
+        (call
+          function: (identifier)
+          arguments: (arguments
+            (identifier))))
+      (identifier))))
+
+================================================================================
+Call expressions
+================================================================================
+
+__a__()
+b(1)
+c(e, f=g)
+i(j, 5,)
+
+--------------------------------------------------------------------------------
+
+(module
+  (call
+    (identifier)
+    (arguments))
+  (call
+    (identifier)
+    (arguments
+      (integer)))
+  (call
+    (identifier)
+    (arguments
+      (identifier)
+      (keyword_argument
+        (identifier)
+        (identifier))))
+  (call
+    (identifier)
+    (arguments
+      (identifier)
+      (integer))))
+
+================================================================================
+Print used as an identifier
+================================================================================
+
+print()
+print(a)
+print(a, b=c)
+print(d, e)
+print(d, *e)
+print(*f, **g,)
+a(print)
+
+--------------------------------------------------------------------------------
+
+(module
+  (call
+    function: (identifier)
+    arguments: (arguments))
+  (call
+    function: (identifier)
+    arguments: (arguments
+      (identifier)))
+  (call
+    function: (identifier)
+    arguments: (arguments
+      (identifier)
+      (keyword_argument
+        name: (identifier)
+        value: (identifier))))
+  (call
+    function: (identifier)
+    arguments: (arguments
+      (identifier)
+      (identifier)))
+  (call
+    function: (identifier)
+    arguments: (arguments
+      (identifier)
+      (list_splat
+        (identifier))))
+  (call
+    function: (identifier)
+    arguments: (arguments
+      (list_splat
+        (identifier))
+      (dictionary_splat
+        (identifier))))
+  (call
+    function: (identifier)
+    arguments: (arguments
+      (identifier))))
+
+================================================================================
+Print used as a parameter
+================================================================================
+
+def a(print):
+  b
+def a(printer=print):
+  c
+def a(*print):
+  b
+def a(**print):
+  b
+def print():
+  a
+
+--------------------------------------------------------------------------------
+
+(module
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (parameter_decl
+          name: (identifier))))
+    body: (block
+      (identifier)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (default_parameter_decl
+          name: (identifier)
+          default: (parameter
+            (identifier)))))
+    body: (block
+      (identifier)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (variadic_parameter_decl
+          name: (identifier))))
+    body: (block
+      (identifier)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (variadic_parameter_decl
+          name: (identifier))))
+    body: (block
+      (identifier)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters))
+    body: (block
+      (identifier))))
+
+================================================================================
+Exec used as an identifier
+================================================================================
+
+exec("print \"'%s' has %i characters\" % (public_function(), len(public_function()))", {"__builtins__" : None}, safe_dict)
+exec("""exec _code_ in _globs_, _locs_""")
+
+--------------------------------------------------------------------------------
+
+(module
+  (call
+    (identifier)
+    (arguments
+      (string
+        (string_start)
+        (string_content
+          (escape_sequence)
+          (escape_sequence))
+        (string_end))
+      (dictionary
+        (pair
+          (string
+            (string_start)
+            (string_content)
+            (string_end))
+          (none)))
+      (identifier)))
+  (call
+    (identifier)
+    (arguments
+      (string
+        (string_start)
+        (string_content)
+        (string_end)))))
+
+================================================================================
+Calls with splats
+================================================================================
+
+a(*())
+a(**{})
+a(*b)
+c(d, *e, **g)
+
+--------------------------------------------------------------------------------
+
+(module
+  (call
+    (identifier)
+    (arguments
+      (list_splat
+        (tuple))))
+  (call
+    (identifier)
+    (arguments
+      (dictionary_splat
+        (dictionary))))
+  (call
+    (identifier)
+    (arguments
+      (list_splat
+        (identifier))))
+  (call
+    (identifier)
+    (arguments
+      (identifier)
+      (list_splat
+        (identifier))
+      (dictionary_splat
+        (identifier)))))
+
+================================================================================
+Math operators
+================================================================================
+
+a + b * c ** d - e / 5
+a // 2
+-5
++x
+~x
+
+--------------------------------------------------------------------------------
+
+(module
+  (binary_operator
+    (binary_operator
+      (identifier)
+      (binary_operator
+        (identifier)
+        (binary_operator
+          (identifier)
+          (identifier))))
+    (binary_operator
+      (identifier)
+      (integer)))
+  (binary_operator
+    (identifier)
+    (integer))
+  (unary_operator
+    (integer))
+  (unary_operator
+    (identifier))
+  (unary_operator
+    (identifier)))
+
+================================================================================
+Binary Addition / Subtraction With Floats
+================================================================================
+
+.1-.0
+.1+.0
+.1-0
+.1+0
+
+1-.0
+1+.0
+
+--------------------------------------------------------------------------------
+
+(module
+  (binary_operator
+    (float)
+    (float))
+  (binary_operator
+    (float)
+    (float))
+  (binary_operator
+    (float)
+    (integer))
+  (binary_operator
+    (float)
+    (integer))
+  (binary_operator
+    (integer)
+    (float))
+  (binary_operator
+    (integer)
+    (float)))
+
+================================================================================
+Power Operator Precedence
+================================================================================
+
+2**2**3
+-2**2
+
+--------------------------------------------------------------------------------
+
+(module
+  (binary_operator
+    (integer)
+    (binary_operator
+      (integer)
+      (integer)))
+  (unary_operator
+    (binary_operator
+      (integer)
+      (integer))))
+
+================================================================================
+Operator precedence
+================================================================================
+
+a() + b[c] * c.d.e
+
+--------------------------------------------------------------------------------
+
+(module
+  (binary_operator
+    left: (call
+      function: (identifier)
+      arguments: (arguments))
+    right: (binary_operator
+      left: (subscript
+        value: (identifier)
+        parameters: (parameters
+          (parameter
+            (identifier))))
+      right: (member_access
+        value: (identifier)
+        member: (identifier)
+        member: (identifier)))))
+
+================================================================================
+Bitwise operators
+================================================================================
+
+a << b | c >> d & e ^ f
+
+--------------------------------------------------------------------------------
+
+(module
+  (binary_operator
+    (binary_operator
+      (identifier)
+      (identifier))
+    (binary_operator
+      (binary_operator
+        (binary_operator
+          (identifier)
+          (identifier))
+        (identifier))
+      (identifier))))
+
+================================================================================
+Boolean operators
+================================================================================
+
+a or b and c
+not d
+not a and b or c
+a and not b and c
+
+--------------------------------------------------------------------------------
+
+(module
+  (boolean_operator
+    (identifier)
+    (boolean_operator
+      (identifier)
+      (identifier)))
+  (not_operator
+    (identifier))
+  (boolean_operator
+    (boolean_operator
+      (not_operator
+        (identifier))
+      (identifier))
+    (identifier))
+  (boolean_operator
+    (boolean_operator
+      (identifier)
+      (not_operator
+        (identifier)))
+    (identifier)))
+
+================================================================================
+Comparison operators
+================================================================================
+
+a < b <= c == d >= e > f
+not a == b or c == d
+a not in b
+a is not b
+a is b and c != d
+a != b
+
+--------------------------------------------------------------------------------
+
+(module
+  (comparison_operator
+    (identifier)
+    (identifier)
+    (identifier)
+    (identifier)
+    (identifier)
+    (identifier))
+  (boolean_operator
+    (not_operator
+      (comparison_operator
+        (identifier)
+        (identifier)))
+    (comparison_operator
+      (identifier)
+      (identifier)))
+  (comparison_operator
+    (identifier)
+    (identifier))
+  (comparison_operator
+    (identifier)
+    (identifier))
+  (boolean_operator
+    (comparison_operator
+      (identifier)
+      (identifier))
+    (comparison_operator
+      (identifier)
+      (identifier)))
+  (comparison_operator
+    (identifier)
+    (identifier)))
+
+================================================================================
+Assignments
+================================================================================
+
+a = 1
+a, b = 1, 2
+a, *c = 1, 2, 3
+a, = 1, 2
+a[b] = c = d
+a, *b.c = d
+
+--------------------------------------------------------------------------------
+
+(module
+  (assignment
+    left: (identifier)
+    right: (integer))
+  (assignment
+    left: (pattern_list
+      (identifier)
+      (identifier))
+    right: (expression_list
+      (integer)
+      (integer)))
+  (assignment
+    left: (pattern_list
+      (identifier)
+      (list_splat_pattern
+        (identifier)))
+    right: (expression_list
+      (integer)
+      (integer)
+      (integer)))
+  (assignment
+    left: (pattern_list
+      (identifier))
+    right: (expression_list
+      (integer)
+      (integer)))
+  (assignment
+    left: (subscript
+      value: (identifier)
+      parameters: (parameters
+        (parameter
+          (identifier))))
+    right: (assignment
+      left: (identifier)
+      right: (identifier)))
+  (assignment
+    left: (pattern_list
+      (identifier)
+      (list_splat_pattern
+        (member_access
+          value: (identifier)
+          member: (identifier))))
+    right: (identifier)))
+
+================================================================================
+Assignments with type annotations
+================================================================================
+
+tail_leaves: List[Leaf] = []
+
+--------------------------------------------------------------------------------
+
+(module
+  (assignment
+    left: (constrained_lhs
+      (identifier)
+      constraint: (generic_parameter
+        value: (identifier)
+        parameters: (parameters
+          (parameter
+            (identifier)))))
+    right: (list)))
+
+================================================================================
+Augmented assignments
+================================================================================
+
+a += 1
+b >>= 2
+c //= 1
+d @= e
+f -= 2
+g %= 2
+h /= 5
+i *= 2.2
+j &= 1
+k ^= 0
+l <<= 2
+m |= k
+n **= 3
+
+--------------------------------------------------------------------------------
+
+(module
+  (augmented_assignment
+    (identifier)
+    (integer))
+  (augmented_assignment
+    (identifier)
+    (integer))
+  (augmented_assignment
+    (identifier)
+    (integer))
+  (augmented_assignment
+    (identifier)
+    (identifier))
+  (augmented_assignment
+    (identifier)
+    (integer))
+  (augmented_assignment
+    (identifier)
+    (integer))
+  (augmented_assignment
+    (identifier)
+    (integer))
+  (augmented_assignment
+    (identifier)
+    (float))
+  (augmented_assignment
+    (identifier)
+    (integer))
+  (augmented_assignment
+    (identifier)
+    (integer))
+  (augmented_assignment
+    (identifier)
+    (integer))
+  (augmented_assignment
+    (identifier)
+    (identifier))
+  (augmented_assignment
+    (identifier)
+    (integer)))
+
+================================================================================
+Operator: walrus
+================================================================================
+
+a := x
+(y := f(x))
+foo(x=(y := f(x)))
+y0 = (y1 := f(x))
+def foo(answer=(p := 42)):
+  return answer;
+def foo(answer: (p := 42) = 5):
+  return answer;
+foo(x := 3, cat='vector')
+(z := (y := (x := 0)))
+
+--------------------------------------------------------------------------------
+
+(module
+  (walrus_operator
+    name: (identifier)
+    value: (identifier))
+  (parenthesized_expression
+    (walrus_operator
+      name: (identifier)
+      value: (call
+        function: (identifier)
+        arguments: (arguments
+          (identifier)))))
+  (call
+    function: (identifier)
+    arguments: (arguments
+      (keyword_argument
+        name: (identifier)
+        value: (parenthesized_expression
+          (walrus_operator
+            name: (identifier)
+            value: (call
+              function: (identifier)
+              arguments: (arguments
+                (identifier))))))))
+  (assignment
+    left: (identifier)
+    right: (parenthesized_expression
+      (walrus_operator
+        name: (identifier)
+        value: (call
+          function: (identifier)
+          arguments: (arguments
+            (identifier))))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (default_parameter_decl
+          name: (identifier)
+          default: (parenthesized_expression
+            (walrus_operator
+              name: (identifier)
+              value: (integer))))))
+    body: (block
+      (return_statement
+        (identifier))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (default_parameter_decl
+          (constrained_parameter_decl
+            name: (identifier)
+            constraint: (parenthesized_expression
+              (walrus_operator
+                name: (identifier)
+                value: (integer))))
+          default: (integer))))
+    body: (block
+      (return_statement
+        (identifier))))
+  (call
+    function: (identifier)
+    arguments: (arguments
+      (walrus_operator
+        name: (identifier)
+        value: (integer))
+      (keyword_argument
+        name: (identifier)
+        value: (string
+          (string_start)
+          (string_content)
+          (string_end)))))
+  (parenthesized_expression
+    (walrus_operator
+      name: (identifier)
+      value: (parenthesized_expression
+        (walrus_operator
+          name: (identifier)
+          value: (parenthesized_expression
+            (walrus_operator
+              name: (identifier)
+              value: (integer))))))))
+
+================================================================================
+Yield expressions
+================================================================================
+
+def example():
+  yield
+  yield 1
+  x = yield 2
+  yield from a
+  yield from (yield from (x for x in range(1, 10)))
+
+--------------------------------------------------------------------------------
+
+(module
+  (function_declaration
+    (function_signature
+      (identifier)
+      (callable_parameters))
+    (block
+      (yield)
+      (yield
+        (integer))
+      (assignment
+        (identifier)
+        (yield
+          (integer)))
+      (yield
+        (identifier))
+      (yield
+        (parenthesized_expression
+          (yield
+            (generator_expression
+              (identifier)
+              (for_in_clause
+                (identifier)
+                (call
+                  (identifier)
+                  (arguments
+                    (integer)
+                    (integer)))))))))))
+
+================================================================================
+lambdas
+================================================================================
+
+lambda b, c: d("e" % f)
+lambda: True
+lambda a, b = c, *d, **e: a
+
+--------------------------------------------------------------------------------
+
+(module
+  (lambda
+    (lambda_signature
+      arguments: (lambda_parameters
+        (parameter_decl
+          name: (identifier))
+        (parameter_decl
+          name: (identifier))))
+    body: (call
+      function: (identifier)
+      arguments: (arguments
+        (binary_operator
+          left: (string
+            (string_start)
+            (string_content)
+            (string_end))
+          right: (identifier)))))
+  (lambda
+    (lambda_signature)
+    body: (true))
+  (lambda
+    (lambda_signature
+      arguments: (lambda_parameters
+        (parameter_decl
+          name: (identifier))
+        (lambda_default_parameter_decl
+          name: (identifier)
+          default: (identifier))
+        (variadic_parameter_decl
+          name: (identifier))
+        (variadic_parameter_decl
+          name: (identifier))))
+    body: (identifier)))
+
+================================================================================
+Tuples with splats
+================================================================================
+
+(foo, *bar, *baz)
+
+--------------------------------------------------------------------------------
+
+(module
+  (tuple
+    (identifier)
+    (list_splat
+      (identifier))
+    (list_splat
+      (identifier))))
+
+================================================================================
+Tuples with yield
+================================================================================
+
+(a, yield a, b, c)
+
+--------------------------------------------------------------------------------
+
+(module
+  (tuple
+    (identifier)
+    (yield
+      (expression_list
+        (identifier)
+        (identifier)
+        (identifier)))))
+
+================================================================================
+Conditional if expressions
+================================================================================
+
+a = b if c else d
+something() if a else d
+slice(1,1,1) if a else d
+
+--------------------------------------------------------------------------------
+
+(module
+  (assignment
+    (identifier)
+    (ternary_conditional
+      (identifier)
+      (identifier)
+      (identifier)))
+  (ternary_conditional
+    (call
+      (identifier)
+      (arguments))
+    (identifier)
+    (identifier))
+  (ternary_conditional
+    (call
+      (identifier)
+      (arguments
+        (integer)
+        (integer)
+        (integer)))
+    (identifier)
+    (identifier)))
+
+================================================================================
+Async context managers and iterators
+================================================================================
+
+async with a as b:
+  async for c in d:
+     [e async for f in g]
+
+--------------------------------------------------------------------------------
+
+(module
+  (with_statement
+    (with_clause
+      (with_item
+        value: (as_pattern
+          (identifier)
+          alias: (as_pattern_target
+            (identifier)))))
+    body: (block
+      (for_statement
+        left: (identifier)
+        right: (identifier)
+        body: (block
+          (list_comprehension
+            body: (identifier)
+            (for_in_clause
+              left: (identifier)
+              right: (identifier))))))))
+
+================================================================================
+Arbitrary indentation between brackets
+================================================================================
+
+def a():
+    b(
+1,
+2
+    )
+
+    c = [
+3
+    ]
+
+--------------------------------------------------------------------------------
+
+(module
+  (function_declaration
+    (function_signature
+      (identifier)
+      (callable_parameters))
+    (block
+      (call
+        (identifier)
+        (arguments
+          (integer)
+          (integer)))
+      (assignment
+        (identifier)
+        (list
+          (integer))))))
+
+================================================================================
+Splat Inside of Expression List
+================================================================================
+
+a,c = [1,2],3
+w, x, y, z = 0, *a, c
+
+--------------------------------------------------------------------------------
+
+(module
+  (assignment
+    (pattern_list
+      (identifier)
+      (identifier))
+    (expression_list
+      (list
+        (integer)
+        (integer))
+      (integer)))
+  (assignment
+    (pattern_list
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier))
+    (expression_list
+      (integer)
+      (list_splat
+        (identifier))
+      (identifier))))
+
+================================================================================
+A function called match
+================================================================================
+
+match(r1, r2, r3)
+
+--------------------------------------------------------------------------------
+
+(module
+  (call
+    (identifier)
+    (arguments
+      (identifier)
+      (identifier)
+      (identifier))))
+
+================================================================================
+Type expressions
+================================================================================
+
+a: A[T] | B
+y: type[int] = int
+
+--------------------------------------------------------------------------------
+
+(module
+  (assignment
+    left: (constrained_lhs
+      (identifier)
+      constraint: (parameter_union
+        (generic_parameter
+          value: (identifier)
+          parameters: (parameters
+            (parameter
+              (identifier))))
+        (parameter
+          (identifier)))))
+  (assignment
+    left: (constrained_lhs
+      (identifier)
+      constraint: (generic_parameter
+        value: (identifier)
+        parameters: (parameters
+          (parameter
+            (identifier)))))
+    right: (identifier)))

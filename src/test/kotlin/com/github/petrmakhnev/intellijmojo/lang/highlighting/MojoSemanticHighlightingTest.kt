@@ -1,0 +1,152 @@
+package com.github.petrmakhnev.intellijmojo.lang.highlighting
+
+import com.github.petrmakhnev.intellijmojo.ide.colors.MojoColor
+import com.github.petrmakhnev.intellijmojo.ide.colors.MojoColorSettingsPage
+import com.github.petrmakhnev.intellijmojo.lang.MojoFileType
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoTypes
+import com.intellij.codeInsight.daemon.impl.HighlightInfo
+import com.intellij.openapi.editor.DefaultLanguageHighlighterColors
+import com.intellij.psi.PsiErrorElement
+import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.testFramework.fixtures.BasePlatformTestCase
+
+class MojoSemanticHighlightingTest : BasePlatformTestCase() {
+    fun testSyntacticSemanticRoles() {
+        val source = """
+            struct Point[T]:
+                var x: T
+
+                fn move(self, var dx: Int):
+                    var result = Point()
+                    result.x += dx
+                    print(value=result)
+
+            def outer(value: Int):
+                def normalize(item: Int) -> Int:
+                    return item
+                external_call["clock_gettime", Int32](Int32(value))
+                return normalize(value)
+
+            type Index = Int
+            comptime DEFAULT_SIZE = 16
+            __mlir_region lower_point():
+                pass
+        """.trimIndent()
+        myFixture.configureByText(MojoFileType, source)
+        val highlights = myFixture.doHighlighting()
+
+        assertColor(source, highlights, "Point", 0, MojoColor.STRUCT)
+        assertColor(source, highlights, "T", 0, MojoColor.TYPE_PARAMETER)
+        assertColor(source, highlights, "x", 0, MojoColor.FIELD)
+        assertColor(source, highlights, "move", 0, MojoColor.METHOD)
+        assertColor(source, highlights, "self", 0, MojoColor.SELF_PARAMETER)
+        assertColor(source, highlights, "dx", 0, MojoColor.MUTABLE_PARAMETER)
+        assertColor(source, highlights, "Int", 0, MojoColor.BUILTIN_TYPE)
+        assertColor(source, highlights, "result", 0, MojoColor.MUTABLE_VARIABLE)
+        assertColor(source, highlights, "x", 1, MojoColor.FIELD)
+        assertColor(source, highlights, "print", 0, MojoColor.FUNCTION_CALL)
+        assertColor(source, highlights, "value", 0, MojoColor.KEYWORD_ARGUMENT)
+        assertColor(source, highlights, "outer", 0, MojoColor.FUNCTION)
+        assertColor(source, highlights, "normalize", 0, MojoColor.NESTED_FUNCTION)
+        assertColor(source, highlights, "external_call", 0, MojoColor.FUNCTION_CALL)
+        assertColor(source, highlights, "normalize", 1, MojoColor.FUNCTION_CALL)
+        assertColor(source, highlights, "Index", 0, MojoColor.TYPE_ALIAS)
+        assertColor(source, highlights, "DEFAULT_SIZE", 0, MojoColor.CONSTANT)
+        assertColor(source, highlights, "lower_point", 0, MojoColor.MLIR_SYMBOL)
+    }
+
+    fun testColorSettingsPageExposesAllColorsAndDemo() {
+        val page = MojoColorSettingsPage()
+
+        assertEquals(MojoColor.entries.size, page.attributeDescriptors.size)
+        assertEquals(MojoColor.entries.size, page.additionalHighlightingTagToDescriptorMap.size)
+        assertTrue(page.demoText.contains("<FUNCTION>make_point</FUNCTION>"))
+
+        val source = page.demoText.replace(Regex("</?[A-Z_]+>"), "")
+        val file = myFixture.configureByText(MojoFileType, source)
+        val errors = PsiTreeUtil.findChildrenOfType(file, PsiErrorElement::class.java)
+        assertTrue(errors.joinToString { "${it.errorDescription} at ${it.textOffset}" }, errors.isEmpty())
+    }
+
+    fun testDecoratorSigilUsesDecoratorColor() {
+        assertEquals(
+            MojoColor.DECORATOR.textAttributesKey,
+            MojoSyntaxHighlighter().getTokenHighlights(MojoTypes.AT).single(),
+        )
+    }
+
+    fun testCallColorsUseVisibleTolkFallbacks() {
+        assertSame(
+            DefaultLanguageHighlighterColors.FUNCTION_DECLARATION,
+            MojoColor.FUNCTION_CALL.textAttributesKey.fallbackAttributeKey,
+        )
+        assertSame(
+            DefaultLanguageHighlighterColors.INSTANCE_METHOD,
+            MojoColor.METHOD_CALL.textAttributesKey.fallbackAttributeKey,
+        )
+    }
+
+    fun testPlainAndParametricCallsAreHighlighted() {
+        val source = """
+            foo()
+            Float64(_monotonic_nanoseconds()) / _NSEC_PER_SEC
+            llvm_intrinsic["llvm.amdgcn.s.memrealtime", UInt64]()
+            value.method()
+            value.parametric_method[Int]()
+        """.trimIndent()
+        val file = myFixture.configureByText(MojoFileType, source)
+        val errors = PsiTreeUtil.findChildrenOfType(file, PsiErrorElement::class.java)
+        assertTrue(errors.joinToString { "${it.errorDescription} at ${it.textOffset}" }, errors.isEmpty())
+
+        val highlights = myFixture.doHighlighting()
+        assertColor(source, highlights, "foo", 0, MojoColor.FUNCTION_CALL)
+        assertColor(source, highlights, "Float64", 0, MojoColor.BUILTIN_TYPE)
+        assertColor(source, highlights, "_monotonic_nanoseconds", 0, MojoColor.FUNCTION_CALL)
+        assertColor(source, highlights, "llvm_intrinsic", 0, MojoColor.FUNCTION_CALL)
+        assertColor(source, highlights, "method", 0, MojoColor.METHOD_CALL)
+        assertColor(source, highlights, "parametric_method", 0, MojoColor.METHOD_CALL)
+    }
+
+    fun testBuiltinTypesUseKeywordColor() {
+        val source = """
+            def convert(value: Int32, text: String, custom: UserType) -> SIMD[DType.float64, 1]:
+                return Float64(value)
+        """.trimIndent()
+        val file = myFixture.configureByText(MojoFileType, source)
+        val errors = PsiTreeUtil.findChildrenOfType(file, PsiErrorElement::class.java)
+        assertTrue(errors.joinToString { "${it.errorDescription} at ${it.textOffset}" }, errors.isEmpty())
+
+        val highlights = myFixture.doHighlighting()
+        assertColor(source, highlights, "Int32", 0, MojoColor.BUILTIN_TYPE)
+        assertColor(source, highlights, "String", 0, MojoColor.BUILTIN_TYPE)
+        assertColor(source, highlights, "SIMD", 0, MojoColor.BUILTIN_TYPE)
+        assertColor(source, highlights, "DType", 0, MojoColor.BUILTIN_TYPE)
+        assertColor(source, highlights, "Float64", 0, MojoColor.BUILTIN_TYPE)
+        assertColor(source, highlights, "UserType", 0, MojoColor.TYPE_REFERENCE)
+    }
+
+    private fun assertColor(
+        source: String,
+        highlights: List<HighlightInfo>,
+        text: String,
+        occurrence: Int,
+        expected: MojoColor,
+    ) {
+        val offset = occurrenceOffset(source, text, occurrence)
+        assertTrue(
+            "Expected $expected on `$text` at $offset, got: " +
+                highlights.filter { it.startOffset == offset }.joinToString { it.forcedTextAttributesKey?.externalName ?: it.type.toString() },
+            highlights.any {
+                it.startOffset == offset &&
+                    it.endOffset == offset + text.length &&
+                    it.forcedTextAttributesKey == expected.textAttributesKey
+            },
+        )
+    }
+
+    private fun occurrenceOffset(source: String, text: String, occurrence: Int): Int {
+        val matches = Regex("\\b${Regex.escape(text)}\\b").findAll(source).toList()
+        return matches.getOrNull(occurrence)?.range?.first
+            ?: error("Cannot find occurrence $occurrence of `$text`")
+    }
+}

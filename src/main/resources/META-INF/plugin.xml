@@ -1,0 +1,43 @@
+<idea-plugin>
+    <id>com.github.petrmakhnev.intellij-mojo</id>
+    <name>Mojo</name>
+    <vendor>Petr Makhnev</vendor>
+    <description><![CDATA[
+        <p>Native Mojo language support for IntelliJ Platform IDEs.</p>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <resource-bundle>messages.MojoBundle</resource-bundle>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileType
+                name="Mojo"
+                language="Mojo"
+                implementationClass="com.github.petrmakhnev.intellijmojo.lang.MojoFileType"
+                fieldName="INSTANCE"
+                extensions="mojo"/>
+        <lang.parserDefinition
+                language="Mojo"
+                implementationClass="com.github.petrmakhnev.intellijmojo.lang.parser.MojoParserDefinition"/>
+        <lang.syntaxHighlighterFactory
+                language="Mojo"
+                implementationClass="com.github.petrmakhnev.intellijmojo.lang.highlighting.MojoSyntaxHighlighterFactory"/>
+        <annotator
+                language="Mojo"
+                implementationClass="com.github.petrmakhnev.intellijmojo.lang.highlighting.MojoSemanticAnnotator"/>
+        <colorSettingsPage
+                implementation="com.github.petrmakhnev.intellijmojo.ide.colors.MojoColorSettingsPage"/>
+        <lang.braceMatcher
+                language="Mojo"
+                implementationClass="com.github.petrmakhnev.intellijmojo.lang.editor.MojoBraceMatcher"/>
+        <lang.commenter
+                language="Mojo"
+                implementationClass="com.github.petrmakhnev.intellijmojo.lang.editor.MojoCommenter"/>
+        <lang.quoteHandler
+                language="Mojo"
+                implementationClass="com.github.petrmakhnev.intellijmojo.lang.editor.MojoQuoteHandler"/>
+        <indexPatternBuilder
+                implementation="com.github.petrmakhnev.intellijmojo.lang.indexing.MojoIndexPatternBuilder"/>
+    </extensions>
+</idea-plugin>

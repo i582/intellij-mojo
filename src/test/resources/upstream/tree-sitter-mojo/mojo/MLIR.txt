@@ -1,0 +1,2795 @@
+================================================================================
+MLIR: type
+================================================================================
+
+var a: __mlir_type.i1 
+var b: __mlir_type.`!kgen.none`
+var c: __mlir_type.`!kgen.scalar<f64>`
+var d: __mlir_type.`!kgen.pointer<!kgen.pointer<f32>>`
+var e: __mlir_type[`!kgen.pointer<!kgen.pointer<scalar<ui8>>>`]
+var f: __mlir_type[
+    `!kgen.struct<:`,
+    type_of(Self.element_types.values),
+    Self.element_types.values,
+    ` isParamPack>`,
+]
+
+comptime OriginSet = __mlir_type.`!lit.origin.set`
+
+comptime T = _MLIR.KGENParamListType[__mlir_type.`!kgen.type`]
+
+comptime _IntToXGeneratorType[ToT: _MLIR.KGENTypeType] = __mlir_type[
+    `!lit.generator<<"Idx":`,
+    Int,
+    `>`,
+    +ToT,
+    `>`,
+]
+
+comptime type = __mlir_type[
+    `!pop.array<`, Self.size.__mlir_index__(), `, `, Self.ElementType, `>`
+]
+
+comptime _kgen_pack_splat_type[dtype: DType, n: Int] = __mlir_type[
+    `!kgen.struct<`,
+    ~TypeList.splat[
+        Trait=TrivialRegisterPassable, count=n, type=Scalar[dtype]
+    ]().values,
+    ` isParamPack>`,
+]
+
+comptime _mlir_type = __mlir_type[
+    `!kgen.struct<:`,
+    type_of(Self.element_types.values),
+    Self.element_types.values,
+    ` isParamPack>`,
+]
+
+comptime _union_type = __mlir_type[
+    `!pop.union<[rebind(:`,
+    type_of(Self.Ts.values),
+    ` `,
+    Self.Ts.values,
+    `)]>`,
+]
+
+comptime _loaded_kgen_pack_type = __mlir_type[
+    `!kgen.struct<:param_list<type> `,
+    Self._variadic_with_pointers_removed,
+    ` isParamPack>`,
+]
+
+comptime _mlir_type = __mlir_type[
+    `!lit.ref.pack<:param_list<`,
+    Self.element_trait,
+    `> `,
+    Self.element_types.values,
+    `, `,
+    Self.origin._mlir_origin,
+    `>`,
+]
+
+comptime _ReducerGeneratorType[
+    FromAndTo: AnyType,
+] = __mlir_type[
+    `!lit.generator<<"Prev": `,
+    +FromAndTo,
+    `, "From": `,
+    +Self.type,
+    `>`,
+    +FromAndTo,
+    `>`,
+]
+
+comptime _ReduceVariadicIdxGeneratorTypeGenerator[
+    Prev: AnyType
+] = __mlir_type[
+    `!lit.generator<<"Prev": `,
+    +Prev,
+    `, "From": `,
+    _MLIR.KGENParamListType[Self.Trait],
+    `, "Idx":`,
+    Int,
+    `>`,
+    +Prev,
+    `>`,
+]
+
+struct IntLiteral[value: __mlir_type.`!pop.int_literal`](
+    Boolable,
+    Ceilable,
+    Defaultable,
+    Floorable,
+    Indexer,
+    Intable,
+    TrivialRegisterPassable,
+    Truncable,
+    Writable,
+):
+    pass
+
+def _to_nvvm_layout[s: StaticString]() -> __mlir_type.`!kgen.deferred`:
+    pass
+
+--------------------------------------------------------------------------------
+
+(module
+  (assignment
+    left: (constrained_lhs
+      (identifier)
+      constraint: (mlir_type
+        (identifier))))
+  (assignment
+    left: (constrained_lhs
+      (identifier)
+      constraint: (mlir_type
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier))))))
+  (assignment
+    left: (constrained_lhs
+      (identifier)
+      constraint: (mlir_type
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)))
+        (mlir_type_punctuation))))
+  (assignment
+    left: (constrained_lhs
+      (identifier)
+      constraint: (mlir_type
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_type_punctuation))))
+  (assignment
+    left: (constrained_lhs
+      (identifier)
+      constraint: (mlir_type
+        (mlir_type_parameter
+          (mlir_type_prefix)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_type_prefix)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_type_punctuation)
+          (mlir_type_punctuation)))))
+  (assignment
+    left: (constrained_lhs
+      (identifier)
+      constraint: (mlir_type
+        (mlir_type_parameter
+          (mlir_type_prefix)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_type_punctuation))
+        (mlir_type_parameter
+          (call
+            function: (identifier)
+            arguments: (arguments
+              (member_access
+                value: (self)
+                member: (identifier)
+                member: (identifier)))))
+        (mlir_type_parameter
+          (parameter_member
+            value: (self)
+            member: (identifier)
+            member: (identifier)))
+        (mlir_type_parameter
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_type_punctuation)))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (mlir_type
+      (mlir_type_prefix)
+      (mlir_parameter
+        (mlir_dotted_identifier
+          (identifier)
+          (identifier)
+          (identifier)))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (parameter_member
+      value: (identifier)
+      member: (member_subscript
+        value: (identifier)
+        parameters: (parameters
+          (mlir_type
+            (mlir_type_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier))))))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter_member
+            value: (identifier)
+            member: (identifier)))))
+    right: (mlir_type
+      (mlir_type_parameter
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_type_punctuation)
+        (mlir_string)
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (parameter
+          (identifier)))
+      (mlir_type_parameter
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (unary_operator
+          argument: (identifier)))
+      (mlir_type_parameter
+        (mlir_type_punctuation))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (mlir_type
+      (mlir_type_parameter
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (parameter_member
+          value: (self)
+          member: (identifier)
+          member: (member_call
+            function: (identifier)
+            arguments: (arguments))))
+      (mlir_type_parameter
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (parameter_member
+          value: (self)
+          member: (identifier)))
+      (mlir_type_parameter
+        (mlir_type_punctuation))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))))
+    right: (mlir_type
+      (mlir_type_parameter
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (unary_operator
+          argument: (member_access
+            value: (identifier)
+            member: (member_call
+              function: (member_subscript
+                value: (identifier)
+                parameters: (parameters
+                  (named_parameter
+                    name: (identifier)
+                    value: (parameter
+                      (identifier)))
+                  (named_parameter
+                    name: (identifier)
+                    value: (parameter
+                      (identifier)))
+                  (named_parameter
+                    name: (identifier)
+                    value: (generic_parameter
+                      value: (identifier)
+                      parameters: (parameters
+                        (parameter
+                          (identifier)))))))
+              arguments: (arguments))
+            member: (identifier))))
+      (mlir_type_parameter
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)))
+        (mlir_type_punctuation))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (mlir_type
+      (mlir_type_parameter
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (call
+          function: (identifier)
+          arguments: (arguments
+            (member_access
+              value: (self)
+              member: (identifier)
+              member: (identifier)))))
+      (mlir_type_parameter
+        (parameter_member
+          value: (self)
+          member: (identifier)
+          member: (identifier)))
+      (mlir_type_parameter
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)))
+        (mlir_type_punctuation))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (mlir_type
+      (mlir_type_parameter
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_type_punctuation)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (call
+          function: (identifier)
+          arguments: (arguments
+            (member_access
+              value: (self)
+              member: (identifier)
+              member: (identifier)))))
+      (mlir_type_parameter)
+      (mlir_type_parameter
+        (parameter_member
+          value: (self)
+          member: (identifier)
+          member: (identifier)))
+      (mlir_type_parameter
+        (mlir_type_punctuation)
+        (mlir_type_punctuation)
+        (mlir_type_punctuation))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (mlir_type
+      (mlir_type_parameter
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_type_punctuation)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)))
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (parameter_member
+          value: (self)
+          member: (identifier)))
+      (mlir_type_parameter
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)))
+        (mlir_type_punctuation))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (mlir_type
+      (mlir_type_parameter
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_type_punctuation)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)))
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (parameter_member
+          value: (self)
+          member: (identifier)))
+      (mlir_type_parameter
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (parameter_member
+          value: (self)
+          member: (identifier)
+          member: (identifier)))
+      (mlir_type_parameter
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (parameter_member
+          value: (self)
+          member: (identifier)
+          member: (identifier)))
+      (mlir_type_parameter
+        (mlir_type_punctuation))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))))
+    right: (mlir_type
+      (mlir_type_parameter
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_type_punctuation)
+        (mlir_string)
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (unary_operator
+          argument: (identifier)))
+      (mlir_type_parameter
+        (mlir_type_punctuation)
+        (mlir_string)
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (unary_operator
+          argument: (member_access
+            value: (self)
+            member: (identifier))))
+      (mlir_type_parameter
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (unary_operator
+          argument: (identifier)))
+      (mlir_type_parameter
+        (mlir_type_punctuation))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))))
+    right: (mlir_type
+      (mlir_type_parameter
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_type_punctuation)
+        (mlir_string)
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (unary_operator
+          argument: (identifier)))
+      (mlir_type_parameter
+        (mlir_type_punctuation)
+        (mlir_string)
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (parameter_member
+          value: (identifier)
+          member: (member_subscript
+            value: (identifier)
+            parameters: (parameters
+              (parameter_member
+                value: (self)
+                member: (identifier))))))
+      (mlir_type_parameter
+        (mlir_type_punctuation)
+        (mlir_string)
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (parameter
+          (identifier)))
+      (mlir_type_parameter
+        (mlir_type_punctuation))
+      (mlir_type_parameter
+        (unary_operator
+          argument: (identifier)))
+      (mlir_type_parameter
+        (mlir_type_punctuation))))
+  (struct_declaration
+    (struct_header
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (mlir_type
+            (mlir_type_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier))))))
+      conformance: (conformance
+        (parameter
+          (identifier))
+        (parameter
+          (identifier))
+        (parameter
+          (identifier))
+        (parameter
+          (identifier))
+        (parameter
+          (identifier))
+        (parameter
+          (identifier))
+        (parameter
+          (identifier))
+        (parameter
+          (identifier))
+        (parameter
+          (identifier))))
+    body: (block
+      (pass_statement)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier))))
+      arguments: (callable_parameters)
+      return_type: (mlir_type
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))))
+    body: (block
+      (pass_statement))))
+
+================================================================================
+MLIR: attr
+================================================================================
+
+if self == DType.int8:
+    return __mlir_attr.si8
+
+if in_type != out_type and in_type.is_integral():
+    return __mlir_attr.`si32`
+
+if self == FastMathFlag.NONE:
+    return __mlir_attr.`#pop<fmf none>`
+
+comptime _mIsSigned = __mlir_attr.`#kgen.simd<1> : !kgen.scalar<ui8>`
+comptime nan = FloatLiteral[__mlir_attr.`#pop.float_literal<nan>`]()
+comptime async_copies_scope = __mlir_attr.`[#llvm.alias_scope<id= "amdgpu.AsyncCopies", domain=#llvm.alias_scope_domain<id = "amdgpu.AsyncOps">>]`
+comptime kind_attr = __mlir_attr.`#nvvm.grid_dep_action launch_dependents`
+
+comptime mlir_type = __mlir_attr[
+    `#kgen.param.expr<rebind, #kgen.type<!kgen.param<`,
+    type,
+    `>> : `,
+    AnyType,
+    `> : !kgen.type`,
+]
+
+comptime if dtype == DType.float8_e4m3fn:
+    return rebind[Scalar[dtype]](
+        __mlir_attr.`#kgen.simd<"-inf"> : !kgen.scalar<f8e4m3fn>`,
+    )
+
+comptime GLOBAL = AddressSpace(
+    __mlir_attr[`#lit.struct<{_mlir_value = 1}> : `, SIMDSize]
+)
+
+comptime field[name: StringLiteral] = Reflected[
+    __mlir_attr[
+        `#kgen.struct_field_type_by_name<`,
+        Self.T,
+        `, `,
+        name.value,
+        `> : `,
+        AnyType,
+    ]
+]
+
+comptime __getitem_param__[idx: SIMDSize] = __mlir_attr[
+    `#kgen.param_list.get<:`,
+    Self._mlir_type,
+    ` `,
+    +Self.values,
+    `, `,
+    idx._mlir_value,
+    `> : `,
+    +Self.Trait,
+]
+
+comptime StaticConstantOrigin = Origin[
+    _mlir_origin=__mlir_attr[
+        `#lit.origin.field<`,
+        `#lit.static.origin : !lit.origin<false>`,
+        `, "__constants__"> : !lit.origin<false>`,
+    ]
+]()
+
+comptime reduce_idx[
+    FromAndTo: AnyType,
+    //,
+    BaseVal: FromAndTo,
+] = __mlir_attr[
+    `#kgen.param_list.reduce<`,
+    BaseVal,
+    `,`,
+    Self.values,
+    `,`,
+    Self._IndexToIntWrap[
+        FromAndTo,
+        Self._PassIndexReducerWrapper[FromAndTo, ...],
+        ...,
+    ],
+    `> : `,
+    +FromAndTo,
+]
+
+def _cross_compilation() -> Bool:
+    return __mlir_attr.`#kgen.param.expr<cross_compilation> : i1`
+
+def _get_shape[m: Int, n: Int, k: Int]() -> __mlir_type.`!kgen.deferred`:
+    return __mlir_deferred_attr[
+        `#nvvm.shape<m =`,
+        +m.__mlir_index__(),
+        `, n =`,
+        +n.__mlir_index__(),
+        `, k =`,
+        +k.__mlir_index__(),
+        `>`,
+    ]
+
+def __init__(
+    existing: TypeList[...],
+    out self: TypeList[
+        Trait=Self.Trait,
+        __mlir_attr[
+            `#kgen.upcast<`,
+            existing.values,
+            `> : `,
+            _MLIR.KGENParamListType[Self.Trait],
+        ],
+    ],
+) where __mlir_attr[
+    `#kgen.is_refined_type<`, existing.Trait, `, `, Self.Trait, `>`
+]:
+    pass
+
+def _type_is_eq[t1: AnyType, t2: AnyType]() -> Bool:
+    return __mlir_attr[
+        `#kgen.param.expr<eq,`,
+        `#kgen.type<`,
+        +t1,
+        `> : !kgen.type`,
+        `,`,
+        `#kgen.type<`,
+        +t2,
+        `> : !kgen.type`,
+        `> : !kgen.scalar<bool>`,
+    ]
+
+def _get_860m_target() -> _TargetType:
+    return __mlir_attr[
+        `#kgen.target<triple = "amdgcn-amd-amdhsa", `,
+        `arch = "gfx1152", `,
+        `features = "", `,
+        `data_layout = "e-m:e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-p7:160:256:256:32-p8:128:128:128:48-p9:192:256:256:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5-G1-ni:7:8:9",`,
+        `index_bit_width = 64,`,
+        `simd_bit_width = 128`,
+        `> : !kgen.target`,
+    ]
+
+--------------------------------------------------------------------------------
+
+(module
+  (if_statement
+    condition: (comparison_operator
+      (identifier)
+      (member_access
+        value: (identifier)
+        member: (identifier)))
+    consequence: (block
+      (return_statement
+        (mlir_attr
+          (identifier)))))
+  (if_statement
+    condition: (boolean_operator
+      left: (comparison_operator
+        (identifier)
+        (identifier))
+      right: (member_access
+        value: (identifier)
+        member: (member_call
+          function: (identifier)
+          arguments: (arguments))))
+    consequence: (block
+      (return_statement
+        (mlir_attr
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))))))
+  (if_statement
+    condition: (comparison_operator
+      (identifier)
+      (member_access
+        value: (identifier)
+        member: (identifier)))
+    consequence: (block
+      (return_statement
+        (mlir_attr
+          (mlir_attr_prefix)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_type_punctuation)))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (mlir_attr
+      (mlir_attr_prefix)
+      (mlir_parameter
+        (mlir_dotted_identifier
+          (identifier)
+          (identifier)))
+      (mlir_type_punctuation)
+      (mlir_parameter
+        (integer))
+      (mlir_type_punctuation)
+      (mlir_type_punctuation)
+      (mlir_type_prefix)
+      (mlir_parameter
+        (mlir_dotted_identifier
+          (identifier)
+          (identifier)))
+      (mlir_type_punctuation)
+      (mlir_parameter
+        (mlir_dotted_identifier
+          (identifier)))
+      (mlir_type_punctuation)))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (call
+      function: (subscript
+        value: (identifier)
+        parameters: (parameters
+          (mlir_attr
+            (mlir_attr_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier)))
+            (mlir_type_punctuation)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_type_punctuation))))
+      arguments: (arguments)))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (mlir_attr
+      (mlir_type_punctuation)
+      (mlir_attr_prefix)
+      (mlir_parameter
+        (mlir_dotted_identifier
+          (identifier)
+          (identifier)))
+      (mlir_type_punctuation)
+      (mlir_parameter
+        (mlir_dotted_identifier
+          (identifier)))
+      (mlir_operator)
+      (mlir_string)
+      (mlir_type_punctuation)
+      (mlir_parameter
+        (mlir_dotted_identifier
+          (identifier)))
+      (mlir_operator)
+      (mlir_attr_prefix)
+      (mlir_parameter
+        (mlir_dotted_identifier
+          (identifier)
+          (identifier)))
+      (mlir_type_punctuation)
+      (mlir_parameter
+        (mlir_dotted_identifier
+          (identifier)))
+      (mlir_operator)
+      (mlir_string)
+      (mlir_type_punctuation)
+      (mlir_type_punctuation)
+      (mlir_type_punctuation)))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (mlir_attr
+      (mlir_attr_prefix)
+      (mlir_parameter
+        (mlir_dotted_identifier
+          (identifier)
+          (identifier)))
+      (mlir_parameter
+        (mlir_dotted_identifier
+          (identifier)))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (mlir_attr
+      (mlir_attr_parameter
+        (mlir_attr_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_attr_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation))
+      (mlir_attr_parameter
+        (parameter
+          (identifier)))
+      (mlir_attr_parameter
+        (mlir_type_punctuation)
+        (mlir_type_punctuation)
+        (mlir_type_punctuation))
+      (mlir_attr_parameter
+        (parameter
+          (identifier)))
+      (mlir_attr_parameter
+        (mlir_type_punctuation)
+        (mlir_type_punctuation)
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier))))))
+  (if_statement
+    condition: (comparison_operator
+      (identifier)
+      (member_access
+        value: (identifier)
+        member: (identifier)))
+    consequence: (block
+      (return_statement
+        (call
+          function: (subscript
+            value: (identifier)
+            parameters: (parameters
+              (generic_parameter
+                value: (identifier)
+                parameters: (parameters
+                  (parameter
+                    (identifier))))))
+          arguments: (arguments
+            (mlir_attr
+              (mlir_attr_prefix)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)
+                  (identifier)))
+              (mlir_type_punctuation)
+              (mlir_string)
+              (mlir_type_punctuation)
+              (mlir_type_punctuation)
+              (mlir_type_prefix)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)
+                  (identifier)))
+              (mlir_type_punctuation)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)))
+              (mlir_type_punctuation)))))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (call
+      function: (identifier)
+      arguments: (arguments
+        (mlir_attr
+          (mlir_attr_parameter
+            (mlir_attr_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier)))
+            (mlir_type_punctuation)
+            (mlir_attr_punctuation)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_operator)
+            (mlir_parameter
+              (integer))
+            (mlir_attr_punctuation)
+            (mlir_type_punctuation)
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (parameter
+              (identifier)))))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))))
+    right: (generic_parameter
+      value: (identifier)
+      parameters: (parameters
+        (mlir_attr
+          (mlir_attr_parameter
+            (mlir_attr_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier)))
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (parameter_member
+              value: (self)
+              member: (identifier)))
+          (mlir_attr_parameter
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (parameter_member
+              value: (identifier)
+              member: (identifier)))
+          (mlir_attr_parameter
+            (mlir_type_punctuation)
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (parameter
+              (identifier)))))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))))
+    right: (mlir_attr
+      (mlir_attr_parameter
+        (mlir_attr_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation)
+        (mlir_type_punctuation))
+      (mlir_attr_parameter
+        (parameter_member
+          value: (self)
+          member: (identifier)))
+      (mlir_attr_parameter)
+      (mlir_attr_parameter
+        (unary_operator
+          argument: (member_access
+            value: (self)
+            member: (identifier))))
+      (mlir_attr_parameter
+        (mlir_type_punctuation))
+      (mlir_attr_parameter
+        (parameter_member
+          value: (identifier)
+          member: (identifier)))
+      (mlir_attr_parameter
+        (mlir_type_punctuation)
+        (mlir_type_punctuation))
+      (mlir_attr_parameter
+        (unary_operator
+          argument: (member_access
+            value: (self)
+            member: (identifier))))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (call
+      function: (subscript
+        value: (identifier)
+        parameters: (parameters
+          (named_parameter
+            name: (identifier)
+            value: (mlir_attr
+              (mlir_attr_parameter
+                (mlir_attr_prefix)
+                (mlir_parameter
+                  (mlir_dotted_identifier
+                    (identifier)
+                    (identifier)
+                    (identifier)))
+                (mlir_type_punctuation))
+              (mlir_attr_parameter
+                (mlir_attr_prefix)
+                (mlir_parameter
+                  (mlir_dotted_identifier
+                    (identifier)
+                    (identifier)
+                    (identifier)))
+                (mlir_type_punctuation)
+                (mlir_type_prefix)
+                (mlir_parameter
+                  (mlir_dotted_identifier
+                    (identifier)
+                    (identifier)))
+                (mlir_type_punctuation)
+                (mlir_parameter
+                  (mlir_dotted_identifier
+                    (identifier)))
+                (mlir_type_punctuation))
+              (mlir_attr_parameter
+                (mlir_type_punctuation)
+                (mlir_string)
+                (mlir_type_punctuation)
+                (mlir_type_punctuation)
+                (mlir_type_prefix)
+                (mlir_parameter
+                  (mlir_dotted_identifier
+                    (identifier)
+                    (identifier)))
+                (mlir_type_punctuation)
+                (mlir_parameter
+                  (mlir_dotted_identifier
+                    (identifier)))
+                (mlir_type_punctuation))))))
+      arguments: (arguments)))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (infer_only_marker)
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))))
+    right: (mlir_attr
+      (mlir_attr_parameter
+        (mlir_attr_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)
+            (identifier)))
+        (mlir_type_punctuation))
+      (mlir_attr_parameter
+        (parameter
+          (identifier)))
+      (mlir_attr_parameter
+        (mlir_type_punctuation))
+      (mlir_attr_parameter
+        (parameter_member
+          value: (self)
+          member: (identifier)))
+      (mlir_attr_parameter
+        (mlir_type_punctuation))
+      (mlir_attr_parameter
+        (parameter_member
+          value: (self)
+          member: (member_subscript
+            value: (identifier)
+            parameters: (parameters
+              (parameter
+                (identifier))
+              (parameter_member
+                value: (self)
+                member: (member_subscript
+                  value: (identifier)
+                  parameters: (parameters
+                    (parameter
+                      (identifier))
+                    (ellipsis))))
+              (ellipsis)))))
+      (mlir_attr_parameter
+        (mlir_type_punctuation)
+        (mlir_type_punctuation))
+      (mlir_attr_parameter
+        (unary_operator
+          argument: (identifier)))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters)
+      return_type: (parameter
+        (identifier)))
+    body: (block
+      (return_statement
+        (mlir_attr
+          (mlir_attr_prefix)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)
+              (identifier)
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier))))
+      arguments: (callable_parameters)
+      return_type: (mlir_type
+        (mlir_type_prefix)
+        (mlir_parameter
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)))))
+    body: (block
+      (return_statement
+        (mlir_attr
+          (mlir_attr_parameter
+            (mlir_attr_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier)))
+            (mlir_type_punctuation)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_operator))
+          (mlir_attr_parameter
+            (unary_operator
+              argument: (member_access
+                value: (identifier)
+                member: (member_call
+                  function: (identifier)
+                  arguments: (arguments)))))
+          (mlir_attr_parameter
+            (mlir_type_punctuation)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_operator))
+          (mlir_attr_parameter
+            (unary_operator
+              argument: (member_access
+                value: (identifier)
+                member: (member_call
+                  function: (identifier)
+                  arguments: (arguments)))))
+          (mlir_attr_parameter
+            (mlir_type_punctuation)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_operator))
+          (mlir_attr_parameter
+            (unary_operator
+              argument: (member_access
+                value: (identifier)
+                member: (member_call
+                  function: (identifier)
+                  arguments: (arguments)))))
+          (mlir_attr_parameter
+            (mlir_type_punctuation))))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (generic_parameter
+            value: (identifier)
+            parameters: (parameters
+              (ellipsis))))
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (generic_parameter
+            value: (identifier)
+            parameters: (parameters
+              (named_parameter
+                name: (identifier)
+                value: (parameter_member
+                  value: (self)
+                  member: (identifier)))
+              (mlir_attr
+                (mlir_attr_parameter
+                  (mlir_attr_prefix)
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)
+                      (identifier)))
+                  (mlir_type_punctuation))
+                (mlir_attr_parameter
+                  (parameter_member
+                    value: (identifier)
+                    member: (identifier)))
+                (mlir_attr_parameter
+                  (mlir_type_punctuation)
+                  (mlir_type_punctuation))
+                (mlir_attr_parameter
+                  (parameter_member
+                    value: (identifier)
+                    member: (member_subscript
+                      value: (identifier)
+                      parameters: (parameters
+                        (parameter_member
+                          value: (self)
+                          member: (identifier)))))))))))
+      (where_clause
+        (mlir_attr
+          (mlir_attr_parameter
+            (mlir_attr_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier)))
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (parameter_member
+              value: (identifier)
+              member: (identifier)))
+          (mlir_attr_parameter
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (parameter_member
+              value: (self)
+              member: (identifier)))
+          (mlir_attr_parameter
+            (mlir_type_punctuation)))))
+    body: (block
+      (pass_statement)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier))))
+      arguments: (callable_parameters)
+      return_type: (parameter
+        (identifier)))
+    body: (block
+      (return_statement
+        (mlir_attr
+          (mlir_attr_parameter
+            (mlir_attr_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier)
+                (identifier)))
+            (mlir_type_punctuation)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (mlir_attr_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier)))
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (unary_operator
+              argument: (identifier)))
+          (mlir_attr_parameter
+            (mlir_type_punctuation)
+            (mlir_type_punctuation)
+            (mlir_type_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier))))
+          (mlir_attr_parameter
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (mlir_attr_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier)))
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (unary_operator
+              argument: (identifier)))
+          (mlir_attr_parameter
+            (mlir_type_punctuation)
+            (mlir_type_punctuation)
+            (mlir_type_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier))))
+          (mlir_attr_parameter
+            (mlir_type_punctuation)
+            (mlir_type_punctuation)
+            (mlir_type_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier)))
+            (mlir_type_punctuation)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_type_punctuation))))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters)
+      return_type: (parameter
+        (identifier)))
+    body: (block
+      (return_statement
+        (mlir_attr
+          (mlir_attr_parameter
+            (mlir_attr_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier)))
+            (mlir_type_punctuation)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_operator)
+            (mlir_string)
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_operator)
+            (mlir_string)
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_operator)
+            (mlir_string)
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_operator)
+            (mlir_string)
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_operator)
+            (mlir_parameter
+              (integer))
+            (mlir_type_punctuation))
+          (mlir_attr_parameter
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_operator)
+            (mlir_parameter
+              (integer)))
+          (mlir_attr_parameter
+            (mlir_type_punctuation)
+            (mlir_type_punctuation)
+            (mlir_type_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier)))))))))
+
+================================================================================
+MLIR: op
+================================================================================
+
+__mlir_op.`nvvm.fence.mbarrier.init`[_type=None]()
+
+__mlir_op.`llvm.add`[
+    _type=__mlir_type.i64,
+    _properties=__mlir_attr.`{
+        overflowFlags = #llvm.overflow<nsw>
+    }`,
+](arg0, arg1)
+
+__mlir_op.`nvvm.cp.async.bulk.shared.cluster.global`[
+    _properties=__mlir_attr.`{
+        operandSegmentSizes = array<i32: 1,1,1,1,0,1>
+    }`,
+    _type=None,
+](dst, src, size, mbar, predicate)
+
+__mlir_op.`nvvm.cp.async.bulk.shared.cluster.global`[
+    _properties=__mlir_attr.`{operandSegmentSizes = array<i32: 1,1,1,1,0,1>}`,
+](to_llvm_shared_mem_ptr(dst_mem))
+
+self._mlir_value = __mlir_op.`pop.simd.splat`[_type=Self._mlir_type](
+    __mlir_op.`pop.cast`[_type=Scalar[Self.dtype]._mlir_type](
+        __mlir_op.`pop.cast_from_builtin`[
+            _type=__mlir_type.`!kgen.scalar<index>`
+        ](value._mlir_value)
+    )
+)
+
+self._mlir_value = __mlir_op.`pop.array.repeat`[
+    _type=__mlir_type[
+        `!pop.array<`,
+        Self.size.__mlir_index__(),
+        `, `,
+        Self.element_type,
+        `>`,
+    ]
+](fill)
+
+var llvmst = __mlir_op.`llvm.mlir.undef`[
+    _type=__mlir_deferred_type[
+        `!llvm.struct<(`,
+        +_get_kgen_string[_get_llvm_struct_fields[n, dtype]()](),
+        `)>`,
+    ]
+]()
+
+var line, col, file_name = __mlir_op.`kgen.source_loc`[
+    inlineCount=Int(0).__mlir_index__(),
+    _type=Tuple[
+        __mlir_type.index,
+        __mlir_type.index,
+        __mlir_type.`!kgen.string`,
+    ],
+]()
+
+def abort() -> Never:
+    __mlir_op.`llvm.intr.trap`()
+
+def _coro_get_resume_fn(handle: AnyCoroutine) -> def(AnyCoroutine) thin -> None:
+    return __mlir_op.`co.resume`[_type=def(AnyCoroutine) thin -> None](handle)
+
+def _select_register_value[
+    T: TrivialRegisterPassable
+](condition: Bool, lhs: T, rhs: T) -> T:
+    return __mlir_op.`pop.select`(condition.__mlir_bool__(), lhs, rhs)
+
+def __mlir_index__(self) -> __mlir_type.index:
+    return __mlir_op.`pop.cast_to_builtin`[_type=__mlir_type.index](
+        __mlir_op.`pop.cast`[
+            _type=SIMD[DType.int, 1]._mlir_type, fast=__mlir_attr.unit
+        ](rebind[SIMD[Self.dtype, SIMDSize(1)]](self)._mlir_value)
+    )
+
+def _null_fn_ptr[T: TrivialRegisterPassable]() -> T:
+    return __mlir_op.`pop.pointer.bitcast`[_type=T](
+        __mlir_attr.`#interp.pointer<0> : !kgen.pointer<none>`
+    )
+
+def codegen_unreachable[cond: Bool, msg: StaticString, *extra: StaticString]():
+    __mlir_op.`kgen.codegen.reachable`[
+        cond=(not cond).__mlir_i1__(),
+        message=_get_kgen_string[msg, *extra](),
+        _type=None,
+    ]()
+
+def max[dtype: DType, //](x: SIMD[dtype, _], y: type_of(x), /) -> type_of(x):
+    return {mlir_value = __mlir_op.`pop.max`(x._mlir_value, y._mlir_value)}
+
+def fence_async_view_proxy():
+    __mlir_op.`nvvm.fence.proxy`[
+        _properties=__mlir_attr.`{ kind = #nvvm.proxy_kind<async.shared>, space = #nvvm.shared_space<cta>}`
+    ]()
+
+def free(ptr: UnsafePointer[mut=True, NoneType, ...]):
+    __mlir_op.`pop.external_call`[
+        func=__mlir_attr[`"free" : !kgen.string`],
+        _type=None,
+        argAttrs=__mlir_attr.`[{llvm.allocptr}]`,
+        funcAttrs=__mlir_attr.`[["allockind", "4"], ["alloc-family", "malloc"]]`,
+    ](ptr)
+
+def _external_call_const[
+    callee: StaticString,
+    return_type: TrivialRegisterPassable,
+    *types: AnyType,
+](*args: *types) -> return_type:
+    var loaded_pack = args.get_loaded_kgen_pack()
+
+    return __mlir_op.`pop.external_call`[
+        func=_get_kgen_string[callee](),
+        resAttrs=__mlir_attr.`[{llvm.noundef}]`,
+        funcAttrs=__mlir_attr.`["willreturn"]`,
+        memory=__mlir_attr[
+            `#llvm.memory_effects<other = none, `,
+            `argMem = none, `,
+            `inaccessibleMem = none, `,
+            `errnoMem = none, `,
+            `targetMem0 = none, `,
+            `targetMem1 = none>`,
+        ],
+        _type=return_type,
+    ](loaded_pack)
+
+def _snprintf[
+    fmt: StaticString, *types: AnyType
+](str: UnsafePointer[mut=True, UInt8, _], size: Int, *args: *types) -> Int:
+    var loaded_pack = args.get_loaded_kgen_pack()
+    return Int(
+        __mlir_op.`pop.external_call`[
+            func="snprintf".value,
+            fnType=__mlir_attr[
+                `(`,
+                `!kgen.pointer<scalar<si8>>,`,
+                `!kgen.scalar<index>, `,
+                `!kgen.pointer<scalar<si8>>`,
+                `) -> !kgen.scalar<si32>`,
+            ],
+            _type=Int32,
+        ](
+            str,
+            size,
+            # Guarantee this is nul terminated.
+            get_static_string[fmt]().unsafe_ptr(),
+            loaded_pack,
+        )
+    )
+
+--------------------------------------------------------------------------------
+
+(module
+  (mlir_op
+    (mlir_dotted_identifier
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier))
+    parameters: (mlir_op_parameters
+      (named_parameter
+        name: (identifier)
+        value: (none)))
+    arguments: (arguments))
+  (mlir_op
+    (mlir_dotted_identifier
+      (identifier)
+      (identifier))
+    parameters: (mlir_op_parameters
+      (named_parameter
+        name: (identifier)
+        value: (mlir_type
+          (identifier)))
+      (named_parameter
+        name: (identifier)
+        value: (mlir_attr
+          (mlir_attr_punctuation)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_operator)
+          (mlir_attr_prefix)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_attr_punctuation))))
+    arguments: (arguments
+      (identifier)
+      (identifier)))
+  (mlir_op
+    (mlir_dotted_identifier
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier))
+    parameters: (mlir_op_parameters
+      (named_parameter
+        name: (identifier)
+        value: (mlir_attr
+          (mlir_attr_punctuation)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_operator)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (integer))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (integer))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (integer))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (integer))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (integer))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (integer))
+          (mlir_type_punctuation)
+          (mlir_attr_punctuation)))
+      (named_parameter
+        name: (identifier)
+        value: (none)))
+    arguments: (arguments
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier)))
+  (mlir_op
+    (mlir_dotted_identifier
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier))
+    parameters: (mlir_op_parameters
+      (named_parameter
+        name: (identifier)
+        value: (mlir_attr
+          (mlir_attr_punctuation)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_operator)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (mlir_dotted_identifier
+              (identifier)))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (integer))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (integer))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (integer))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (integer))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (integer))
+          (mlir_type_punctuation)
+          (mlir_parameter
+            (integer))
+          (mlir_type_punctuation)
+          (mlir_attr_punctuation))))
+    arguments: (arguments
+      (call
+        function: (identifier)
+        arguments: (arguments
+          (identifier)))))
+  (assignment
+    left: (member_access
+      value: (identifier)
+      member: (identifier))
+    right: (mlir_op
+      (mlir_dotted_identifier
+        (identifier)
+        (identifier)
+        (identifier))
+      parameters: (mlir_op_parameters
+        (named_parameter
+          name: (identifier)
+          value: (parameter_member
+            value: (self)
+            member: (identifier))))
+      arguments: (arguments
+        (mlir_op
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier))
+          parameters: (mlir_op_parameters
+            (named_parameter
+              name: (identifier)
+              value: (parameter_member
+                value: (subscript
+                  value: (identifier)
+                  parameters: (parameters
+                    (parameter_member
+                      value: (self)
+                      member: (identifier))))
+                member: (identifier))))
+          arguments: (arguments
+            (mlir_op
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier))
+              parameters: (mlir_op_parameters
+                (named_parameter
+                  name: (identifier)
+                  value: (mlir_type
+                    (mlir_type_prefix)
+                    (mlir_parameter
+                      (mlir_dotted_identifier
+                        (identifier)
+                        (identifier)))
+                    (mlir_type_punctuation)
+                    (mlir_parameter
+                      (mlir_dotted_identifier
+                        (identifier)))
+                    (mlir_type_punctuation))))
+              arguments: (arguments
+                (member_access
+                  value: (identifier)
+                  member: (identifier)))))))))
+  (assignment
+    left: (member_access
+      value: (identifier)
+      member: (identifier))
+    right: (mlir_op
+      (mlir_dotted_identifier
+        (identifier)
+        (identifier)
+        (identifier))
+      parameters: (mlir_op_parameters
+        (named_parameter
+          name: (identifier)
+          value: (mlir_type
+            (mlir_type_parameter
+              (mlir_type_prefix)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)
+                  (identifier)))
+              (mlir_type_punctuation))
+            (mlir_type_parameter
+              (parameter_member
+                value: (self)
+                member: (identifier)
+                member: (member_call
+                  function: (identifier)
+                  arguments: (arguments))))
+            (mlir_type_parameter
+              (mlir_type_punctuation))
+            (mlir_type_parameter
+              (parameter_member
+                value: (self)
+                member: (identifier)))
+            (mlir_type_parameter
+              (mlir_type_punctuation)))))
+      arguments: (arguments
+        (identifier))))
+  (assignment
+    left: (identifier)
+    right: (mlir_op
+      (mlir_dotted_identifier
+        (identifier)
+        (identifier)
+        (identifier))
+      parameters: (mlir_op_parameters
+        (named_parameter
+          name: (identifier)
+          value: (mlir_type
+            (mlir_type_parameter
+              (mlir_type_prefix)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)
+                  (identifier)))
+              (mlir_type_punctuation)
+              (mlir_type_punctuation))
+            (mlir_type_parameter
+              (unary_operator
+                argument: (call
+                  function: (subscript
+                    value: (identifier)
+                    parameters: (parameters
+                      (call
+                        function: (subscript
+                          value: (identifier)
+                          parameters: (parameters
+                            (parameter
+                              (identifier))
+                            (parameter
+                              (identifier))))
+                        arguments: (arguments))))
+                  arguments: (arguments))))
+            (mlir_type_parameter
+              (mlir_type_punctuation)
+              (mlir_type_punctuation)))))
+      arguments: (arguments)))
+  (assignment
+    left: (pattern_list
+      (identifier)
+      (identifier)
+      (identifier))
+    right: (mlir_op
+      (mlir_dotted_identifier
+        (identifier)
+        (identifier))
+      parameters: (mlir_op_parameters
+        (named_parameter
+          name: (identifier)
+          value: (parameter_member
+            value: (call
+              function: (identifier)
+              arguments: (arguments
+                (integer)))
+            member: (member_call
+              function: (identifier)
+              arguments: (arguments))))
+        (named_parameter
+          name: (identifier)
+          value: (generic_parameter
+            value: (identifier)
+            parameters: (parameters
+              (mlir_type
+                (identifier))
+              (mlir_type
+                (identifier))
+              (mlir_type
+                (mlir_type_prefix)
+                (mlir_parameter
+                  (mlir_dotted_identifier
+                    (identifier)
+                    (identifier))))))))
+      arguments: (arguments)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters)
+      return_type: (parameter
+        (identifier)))
+    body: (block
+      (mlir_op
+        (mlir_dotted_identifier
+          (identifier)
+          (identifier)
+          (identifier))
+        arguments: (arguments))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier))))
+      return_type: (function_type
+        arguments: (function_type_parameters
+          (parameter
+            (identifier)))
+        effects: (function_effects
+          (thin))
+        return_type: (none)))
+    body: (block
+      (return_statement
+        (mlir_op
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier))
+          parameters: (mlir_op_parameters
+            (named_parameter
+              name: (identifier)
+              value: (function_type
+                arguments: (function_type_parameters
+                  (parameter
+                    (identifier)))
+                effects: (function_effects
+                  (thin))
+                return_type: (none))))
+          arguments: (arguments
+            (identifier))))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier))))
+      arguments: (callable_parameters
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier))))
+      return_type: (parameter
+        (identifier)))
+    body: (block
+      (return_statement
+        (mlir_op
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier))
+          arguments: (arguments
+            (member_access
+              value: (identifier)
+              member: (member_call
+                function: (identifier)
+                arguments: (arguments)))
+            (identifier)
+            (identifier))))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (parameter_decl
+          name: (identifier)))
+      return_type: (mlir_type
+        (identifier)))
+    body: (block
+      (return_statement
+        (mlir_op
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier))
+          parameters: (mlir_op_parameters
+            (named_parameter
+              name: (identifier)
+              value: (mlir_type
+                (identifier))))
+          arguments: (arguments
+            (mlir_op
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier))
+              parameters: (mlir_op_parameters
+                (named_parameter
+                  name: (identifier)
+                  value: (parameter_member
+                    value: (subscript
+                      value: (identifier)
+                      parameters: (parameters
+                        (parameter_member
+                          value: (identifier)
+                          member: (identifier))
+                        (integer)))
+                    member: (identifier)))
+                (named_parameter
+                  name: (identifier)
+                  value: (mlir_attr
+                    (identifier))))
+              arguments: (arguments
+                (member_access
+                  value: (call
+                    function: (subscript
+                      value: (identifier)
+                      parameters: (parameters
+                        (generic_parameter
+                          value: (identifier)
+                          parameters: (parameters
+                            (parameter_member
+                              value: (self)
+                              member: (identifier))
+                            (call
+                              function: (identifier)
+                              arguments: (arguments
+                                (integer)))))))
+                    arguments: (arguments
+                      (identifier)))
+                  member: (identifier)))))))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier))))
+      arguments: (callable_parameters)
+      return_type: (parameter
+        (identifier)))
+    body: (block
+      (return_statement
+        (mlir_op
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier)
+            (identifier))
+          parameters: (mlir_op_parameters
+            (named_parameter
+              name: (identifier)
+              value: (parameter
+                (identifier))))
+          arguments: (arguments
+            (mlir_attr
+              (mlir_attr_prefix)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)
+                  (identifier)))
+              (mlir_type_punctuation)
+              (mlir_parameter
+                (integer))
+              (mlir_type_punctuation)
+              (mlir_type_punctuation)
+              (mlir_type_prefix)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)
+                  (identifier)))
+              (mlir_type_punctuation)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)))
+              (mlir_type_punctuation)))))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (constrained_variadic_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier))))
+      arguments: (callable_parameters))
+    body: (block
+      (mlir_op
+        (mlir_dotted_identifier
+          (identifier)
+          (identifier)
+          (identifier))
+        parameters: (mlir_op_parameters
+          (named_parameter
+            name: (identifier)
+            value: (parameter_member
+              value: (parenthesized_expression
+                (not_operator
+                  argument: (identifier)))
+              member: (member_call
+                function: (identifier)
+                arguments: (arguments))))
+          (named_parameter
+            name: (identifier)
+            value: (call
+              function: (subscript
+                value: (identifier)
+                parameters: (parameters
+                  (parameter
+                    (identifier))
+                  (variadic_parameter
+                    (parameter
+                      (identifier)))))
+              arguments: (arguments)))
+          (named_parameter
+            name: (identifier)
+            value: (none)))
+        arguments: (arguments))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (infer_only_marker))
+      arguments: (callable_parameters
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (generic_parameter
+            value: (identifier)
+            parameters: (parameters
+              (parameter
+                (identifier))
+              (underscore))))
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (call
+            function: (identifier)
+            arguments: (arguments
+              (identifier))))
+        (positional_only_marker))
+      return_type: (call
+        function: (identifier)
+        arguments: (arguments
+          (identifier))))
+    body: (block
+      (return_statement
+        (initializer_list
+          (keyword_argument
+            name: (identifier)
+            value: (mlir_op
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier))
+              arguments: (arguments
+                (member_access
+                  value: (identifier)
+                  member: (identifier))
+                (member_access
+                  value: (identifier)
+                  member: (identifier)))))))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters))
+    body: (block
+      (mlir_op
+        (mlir_dotted_identifier
+          (identifier)
+          (identifier)
+          (identifier))
+        parameters: (mlir_op_parameters
+          (named_parameter
+            name: (identifier)
+            value: (mlir_attr
+              (mlir_attr_punctuation)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)))
+              (mlir_operator)
+              (mlir_attr_prefix)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)
+                  (identifier)))
+              (mlir_type_punctuation)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)
+                  (identifier)))
+              (mlir_type_punctuation)
+              (mlir_type_punctuation)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)))
+              (mlir_operator)
+              (mlir_attr_prefix)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)
+                  (identifier)))
+              (mlir_type_punctuation)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)))
+              (mlir_type_punctuation)
+              (mlir_attr_punctuation))))
+        arguments: (arguments))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (generic_parameter
+            value: (identifier)
+            parameters: (parameters
+              (named_parameter
+                name: (identifier)
+                value: (true))
+              (parameter
+                (identifier))
+              (ellipsis))))))
+    body: (block
+      (mlir_op
+        (mlir_dotted_identifier
+          (identifier)
+          (identifier))
+        parameters: (mlir_op_parameters
+          (named_parameter
+            name: (identifier)
+            value: (mlir_attr
+              (mlir_attr_parameter
+                (mlir_string)
+                (mlir_type_punctuation)
+                (mlir_type_prefix)
+                (mlir_parameter
+                  (mlir_dotted_identifier
+                    (identifier)
+                    (identifier))))))
+          (named_parameter
+            name: (identifier)
+            value: (none))
+          (named_parameter
+            name: (identifier)
+            value: (mlir_attr
+              (mlir_type_punctuation)
+              (mlir_attr_punctuation)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier)
+                  (identifier)))
+              (mlir_attr_punctuation)
+              (mlir_type_punctuation)))
+          (named_parameter
+            name: (identifier)
+            value: (mlir_attr
+              (mlir_type_punctuation)
+              (mlir_type_punctuation)
+              (mlir_string)
+              (mlir_type_punctuation)
+              (mlir_string)
+              (mlir_type_punctuation)
+              (mlir_type_punctuation)
+              (mlir_type_punctuation)
+              (mlir_string)
+              (mlir_type_punctuation)
+              (mlir_string)
+              (mlir_type_punctuation)
+              (mlir_type_punctuation))))
+        arguments: (arguments
+          (identifier)))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (constrained_variadic_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier))))
+      arguments: (callable_parameters
+        (constrained_variadic_parameter_decl
+          name: (identifier)
+          constraint: (variadic_parameter
+            (parameter
+              (identifier)))))
+      return_type: (parameter
+        (identifier)))
+    body: (block
+      (assignment
+        left: (identifier)
+        right: (member_access
+          value: (identifier)
+          member: (member_call
+            function: (identifier)
+            arguments: (arguments))))
+      (return_statement
+        (mlir_op
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier))
+          parameters: (mlir_op_parameters
+            (named_parameter
+              name: (identifier)
+              value: (call
+                function: (subscript
+                  value: (identifier)
+                  parameters: (parameters
+                    (parameter
+                      (identifier))))
+                arguments: (arguments)))
+            (named_parameter
+              name: (identifier)
+              value: (mlir_attr
+                (mlir_type_punctuation)
+                (mlir_attr_punctuation)
+                (mlir_parameter
+                  (mlir_dotted_identifier
+                    (identifier)
+                    (identifier)))
+                (mlir_attr_punctuation)
+                (mlir_type_punctuation)))
+            (named_parameter
+              name: (identifier)
+              value: (mlir_attr
+                (mlir_type_punctuation)
+                (mlir_string)
+                (mlir_type_punctuation)))
+            (named_parameter
+              name: (identifier)
+              value: (mlir_attr
+                (mlir_attr_parameter
+                  (mlir_attr_prefix)
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)
+                      (identifier)))
+                  (mlir_type_punctuation)
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)))
+                  (mlir_operator)
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)))
+                  (mlir_type_punctuation))
+                (mlir_attr_parameter
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)))
+                  (mlir_operator)
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)))
+                  (mlir_type_punctuation))
+                (mlir_attr_parameter
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)))
+                  (mlir_operator)
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)))
+                  (mlir_type_punctuation))
+                (mlir_attr_parameter
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)))
+                  (mlir_operator)
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)))
+                  (mlir_type_punctuation))
+                (mlir_attr_parameter
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)))
+                  (mlir_operator)
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)))
+                  (mlir_type_punctuation))
+                (mlir_attr_parameter
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)))
+                  (mlir_operator)
+                  (mlir_parameter
+                    (mlir_dotted_identifier
+                      (identifier)))
+                  (mlir_type_punctuation))))
+            (named_parameter
+              name: (identifier)
+              value: (parameter
+                (identifier))))
+          arguments: (arguments
+            (identifier))))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (constrained_variadic_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier))))
+      arguments: (callable_parameters
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (generic_parameter
+            value: (identifier)
+            parameters: (parameters
+              (named_parameter
+                name: (identifier)
+                value: (true))
+              (parameter
+                (identifier))
+              (underscore))))
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))
+        (constrained_variadic_parameter_decl
+          name: (identifier)
+          constraint: (variadic_parameter
+            (parameter
+              (identifier)))))
+      return_type: (parameter
+        (identifier)))
+    body: (block
+      (assignment
+        left: (identifier)
+        right: (member_access
+          value: (identifier)
+          member: (member_call
+            function: (identifier)
+            arguments: (arguments))))
+      (return_statement
+        (call
+          function: (identifier)
+          arguments: (arguments
+            (mlir_op
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier))
+              parameters: (mlir_op_parameters
+                (named_parameter
+                  name: (identifier)
+                  value: (parameter_member
+                    value: (string
+                      (string_start)
+                      (string_content)
+                      (string_end))
+                    member: (identifier)))
+                (named_parameter
+                  name: (identifier)
+                  value: (mlir_attr
+                    (mlir_attr_parameter
+                      (mlir_type_punctuation))
+                    (mlir_attr_parameter
+                      (mlir_type_prefix)
+                      (mlir_parameter
+                        (mlir_dotted_identifier
+                          (identifier)
+                          (identifier)))
+                      (mlir_type_punctuation)
+                      (mlir_parameter
+                        (mlir_dotted_identifier
+                          (identifier)))
+                      (mlir_type_punctuation)
+                      (mlir_parameter
+                        (mlir_dotted_identifier
+                          (identifier)))
+                      (mlir_type_punctuation)
+                      (mlir_type_punctuation)
+                      (mlir_type_punctuation))
+                    (mlir_attr_parameter
+                      (mlir_type_prefix)
+                      (mlir_parameter
+                        (mlir_dotted_identifier
+                          (identifier)
+                          (identifier)))
+                      (mlir_type_punctuation)
+                      (mlir_parameter
+                        (mlir_dotted_identifier
+                          (identifier)))
+                      (mlir_type_punctuation)
+                      (mlir_type_punctuation))
+                    (mlir_attr_parameter
+                      (mlir_type_prefix)
+                      (mlir_parameter
+                        (mlir_dotted_identifier
+                          (identifier)
+                          (identifier)))
+                      (mlir_type_punctuation)
+                      (mlir_parameter
+                        (mlir_dotted_identifier
+                          (identifier)))
+                      (mlir_type_punctuation)
+                      (mlir_parameter
+                        (mlir_dotted_identifier
+                          (identifier)))
+                      (mlir_type_punctuation)
+                      (mlir_type_punctuation))
+                    (mlir_attr_parameter
+                      (mlir_type_punctuation)
+                      (mlir_operator)
+                      (mlir_type_prefix)
+                      (mlir_parameter
+                        (mlir_dotted_identifier
+                          (identifier)
+                          (identifier)))
+                      (mlir_type_punctuation)
+                      (mlir_parameter
+                        (mlir_dotted_identifier
+                          (identifier)))
+                      (mlir_type_punctuation))))
+                (named_parameter
+                  name: (identifier)
+                  value: (parameter
+                    (identifier))))
+              arguments: (arguments
+                (identifier)
+                (identifier)
+                (comment)
+                (member_access
+                  value: (call
+                    function: (subscript
+                      value: (identifier)
+                      parameters: (parameters
+                        (parameter
+                          (identifier))))
+                    arguments: (arguments))
+                  member: (member_call
+                    function: (identifier)
+                    arguments: (arguments)))
+                (identifier)))))))))
+
+================================================================================
+MLIR: region
+================================================================================
+
+__mlir_region my_region(
+    x: __mlir_type.index,
+    y: __mlir_type.`!kgen.scalar<f32>`,
+):
+    pass
+
+def _suspend_async[body: def(AnyCoroutine) -> None]():
+    __mlir_region await_body(hdl: __mlir_type.`!co.routine`):
+        body(hdl)
+        __mlir_op.`co.suspend.end`()
+
+    __mlir_op.`co.suspend`[_region="await_body".value]()
+
+def structured_for_loop() -> __mlir_type.index:
+    __mlir_region loop_body(i: __mlir_type.index):
+        __mlir_op.`hlcf.continue`(
+            __mlir_op.`index.add`(i, one)
+        )
+
+    return __mlir_op.`hlcf.loop`[
+        _type=__mlir_type.index,
+        _region=__mlir_attr.`"loop_body"`,
+    ](__mlir_attr.`0 : index`)
+
+--------------------------------------------------------------------------------
+
+(module
+  (mlir_region_declaration
+    (mlir_region_signature
+      name: (identifier)
+      arguments: (mlir_callable_parameters
+        (constrained_mlir_parameter_decl
+          name: (identifier)
+          constraint: (mlir_type
+            (identifier)))
+        (constrained_mlir_parameter_decl
+          name: (identifier)
+          constraint: (mlir_type
+            (mlir_type_prefix)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)
+                (identifier)))
+            (mlir_type_punctuation)
+            (mlir_parameter
+              (mlir_dotted_identifier
+                (identifier)))
+            (mlir_type_punctuation)))))
+    body: (block
+      (pass_statement)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (function_type
+            arguments: (function_type_parameters
+              (parameter
+                (identifier)))
+            return_type: (none))))
+      arguments: (callable_parameters))
+    body: (block
+      (mlir_region_declaration
+        (mlir_region_signature
+          name: (identifier)
+          arguments: (mlir_callable_parameters
+            (constrained_mlir_parameter_decl
+              name: (identifier)
+              constraint: (mlir_type
+                (mlir_type_prefix)
+                (mlir_parameter
+                  (mlir_dotted_identifier
+                    (identifier)
+                    (identifier)))))))
+        body: (block
+          (call
+            function: (identifier)
+            arguments: (arguments
+              (identifier)))
+          (mlir_op
+            (mlir_dotted_identifier
+              (identifier)
+              (identifier)
+              (identifier))
+            arguments: (arguments))))
+      (mlir_op
+        (mlir_dotted_identifier
+          (identifier)
+          (identifier))
+        parameters: (mlir_op_parameters
+          (named_parameter
+            name: (identifier)
+            value: (parameter_member
+              value: (string
+                (string_start)
+                (string_content)
+                (string_end))
+              member: (identifier))))
+        arguments: (arguments))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters)
+      return_type: (mlir_type
+        (identifier)))
+    body: (block
+      (mlir_region_declaration
+        (mlir_region_signature
+          name: (identifier)
+          arguments: (mlir_callable_parameters
+            (constrained_mlir_parameter_decl
+              name: (identifier)
+              constraint: (mlir_type
+                (identifier)))))
+        body: (block
+          (mlir_op
+            (mlir_dotted_identifier
+              (identifier)
+              (identifier))
+            arguments: (arguments
+              (mlir_op
+                (mlir_dotted_identifier
+                  (identifier)
+                  (identifier))
+                arguments: (arguments
+                  (identifier)
+                  (identifier)))))))
+      (return_statement
+        (mlir_op
+          (mlir_dotted_identifier
+            (identifier)
+            (identifier))
+          parameters: (mlir_op_parameters
+            (named_parameter
+              name: (identifier)
+              value: (mlir_type
+                (identifier)))
+            (named_parameter
+              name: (identifier)
+              value: (mlir_attr
+                (mlir_string))))
+          arguments: (arguments
+            (mlir_attr
+              (mlir_parameter
+                (integer))
+              (mlir_type_punctuation)
+              (mlir_parameter
+                (mlir_dotted_identifier
+                  (identifier))))))))))

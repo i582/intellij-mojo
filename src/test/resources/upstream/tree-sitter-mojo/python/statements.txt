@@ -1,0 +1,1540 @@
+================================================================================
+Import: module
+================================================================================
+
+import a, b
+import b.c as d
+import a.b.c
+
+--------------------------------------------------------------------------------
+
+(module
+  (module_import_statement
+    module: (import
+      name: (dotted_escaped_identifier
+        (identifier)))
+    module: (import
+      name: (dotted_escaped_identifier
+        (identifier))))
+  (module_import_statement
+    module: (aliased_import
+      name: (dotted_escaped_identifier
+        (identifier)
+        (identifier))
+      alias: (identifier)))
+  (module_import_statement
+    module: (import
+      name: (dotted_escaped_identifier
+        (identifier)
+        (identifier)
+        (identifier)))))
+
+================================================================================
+Import: selective
+================================================================================
+
+from a import b
+from a import *
+from a import (b, c)
+from a.b import c
+from . import b
+from .. import b
+from .a import b
+from ..a import b as d
+
+--------------------------------------------------------------------------------
+
+(module
+  (selective_import_statement
+    module: (import
+      name: (dotted_escaped_identifier
+        (identifier)))
+    (import
+      name: (dotted_escaped_identifier
+        (identifier))))
+  (selective_import_statement
+    module: (import
+      name: (dotted_escaped_identifier
+        (identifier)))
+    (wildcard_import))
+  (selective_import_statement
+    module: (import
+      name: (dotted_escaped_identifier
+        (identifier)))
+    (import
+      name: (dotted_escaped_identifier
+        (identifier)))
+    (import
+      name: (dotted_escaped_identifier
+        (identifier))))
+  (selective_import_statement
+    module: (import
+      name: (dotted_escaped_identifier
+        (identifier)
+        (identifier)))
+    (import
+      name: (dotted_escaped_identifier
+        (identifier))))
+  (selective_import_statement
+    module: (relative_import
+      (import_prefix))
+    (import
+      name: (dotted_escaped_identifier
+        (identifier))))
+  (selective_import_statement
+    module: (relative_import
+      (import_prefix))
+    (import
+      name: (dotted_escaped_identifier
+        (identifier))))
+  (selective_import_statement
+    module: (relative_import
+      (import_prefix)
+      name: (dotted_escaped_identifier
+        (identifier)))
+    (import
+      name: (dotted_escaped_identifier
+        (identifier))))
+  (selective_import_statement
+    module: (relative_import
+      (import_prefix)
+      name: (dotted_escaped_identifier
+        (identifier)))
+    (aliased_import
+      name: (dotted_escaped_identifier
+        (identifier))
+      alias: (identifier))))
+
+================================================================================
+Import: future
+================================================================================
+
+from __future__ import print_function
+from __future__ import python4
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+--------------------------------------------------------------------------------
+
+(module
+  (future_import_statement
+    (import
+      name: (dotted_escaped_identifier
+        (identifier))))
+  (future_import_statement
+    (import
+      name: (dotted_escaped_identifier
+        (identifier))))
+  (future_import_statement
+    (import
+      name: (dotted_escaped_identifier
+        (identifier)))
+    (import
+      name: (dotted_escaped_identifier
+        (identifier)))
+    (import
+      name: (dotted_escaped_identifier
+        (identifier)))
+    (import
+      name: (dotted_escaped_identifier
+        (identifier)))))
+
+================================================================================
+Assert statements
+================================================================================
+
+assert a
+assert b, c
+
+--------------------------------------------------------------------------------
+
+(module
+  (assert_statement
+    (identifier))
+  (assert_statement
+    (identifier)
+    (identifier)))
+
+================================================================================
+Expression statements
+================================================================================
+
+a
+b + c
+1, 2, 3
+1, 2, 3,
+
+--------------------------------------------------------------------------------
+
+(module
+  (identifier)
+  (binary_operator
+    (identifier)
+    (identifier))
+  (tuple_expression
+    (integer)
+    (integer)
+    (integer))
+  (tuple_expression
+    (integer)
+    (integer)
+    (integer)))
+
+================================================================================
+Delete statements
+================================================================================
+
+del a[1], b[2]
+
+--------------------------------------------------------------------------------
+
+(module
+  (del_statement
+    (expression_list
+      (subscript
+        value: (identifier)
+        parameters: (parameters
+          (integer)))
+      (subscript
+        value: (identifier)
+        parameters: (parameters
+          (integer))))))
+
+================================================================================
+Control-flow statements
+================================================================================
+
+while true:
+  pass
+  break
+  continue
+
+--------------------------------------------------------------------------------
+
+(module
+  (while_statement
+    condition: (identifier)
+    body: (block
+      (pass_statement)
+      (break_statement)
+      (continue_statement))))
+
+================================================================================
+Return statements
+================================================================================
+
+return
+return a + b, c
+return not b
+
+--------------------------------------------------------------------------------
+
+(module
+  (return_statement)
+  (return_statement
+    (expression_list
+      (binary_operator
+        (identifier)
+        (identifier))
+      (identifier)))
+  (return_statement
+    (not_operator
+      (identifier))))
+
+================================================================================
+If statements
+================================================================================
+
+if a:
+  b
+  c
+
+--------------------------------------------------------------------------------
+
+(module
+  (if_statement
+    condition: (identifier)
+    consequence: (block
+      (identifier)
+      (identifier))))
+
+================================================================================
+If else statements
+================================================================================
+
+if a:
+  b
+elif c:
+  d
+else:
+  f
+
+if a:
+  b
+else:
+  f
+
+if a: b
+
+if a: b; c
+
+--------------------------------------------------------------------------------
+
+(module
+  (if_statement
+    condition: (identifier)
+    consequence: (block
+      (identifier))
+    alternative: (elif_clause
+      condition: (identifier)
+      consequence: (block
+        (identifier)))
+    alternative: (else_clause
+      body: (block
+        (identifier))))
+  (if_statement
+    condition: (identifier)
+    consequence: (block
+      (identifier))
+    alternative: (else_clause
+      body: (block
+        (identifier))))
+  (if_statement
+    condition: (identifier)
+    consequence: (block
+      (identifier)))
+  (if_statement
+    condition: (identifier)
+    consequence: (block
+      (identifier)
+      (identifier))))
+
+================================================================================
+Nested if statements
+================================================================================
+
+if a:
+  if b:
+    c
+  else:
+    if e:
+      f
+g
+
+--------------------------------------------------------------------------------
+
+(module
+  (if_statement
+    condition: (identifier)
+    consequence: (block
+      (if_statement
+        condition: (identifier)
+        consequence: (block
+          (identifier))
+        alternative: (else_clause
+          body: (block
+            (if_statement
+              condition: (identifier)
+              consequence: (block
+                (identifier))))))))
+  (identifier))
+
+================================================================================
+While statements
+================================================================================
+
+while a:
+  b
+
+while c:
+  d
+else:
+  e
+  f
+
+--------------------------------------------------------------------------------
+
+(module
+  (while_statement
+    condition: (identifier)
+    body: (block
+      (identifier)))
+  (while_statement
+    condition: (identifier)
+    body: (block
+      (identifier))
+    alternative: (else_clause
+      body: (block
+        (identifier)
+        (identifier)))))
+
+================================================================================
+For statements
+================================================================================
+
+for line, i in lines:
+  print(line)
+  for character, j in line:
+    print(character)
+else:
+  print(x)
+
+for x, in [(1,), (2,), (3,)]:
+  x
+
+--------------------------------------------------------------------------------
+
+(module
+  (for_statement
+    left: (pattern_list
+      (identifier)
+      (identifier))
+    right: (identifier)
+    body: (block
+      (call
+        function: (identifier)
+        arguments: (arguments
+          (identifier)))
+      (for_statement
+        left: (pattern_list
+          (identifier)
+          (identifier))
+        right: (identifier)
+        body: (block
+          (call
+            function: (identifier)
+            arguments: (arguments
+              (identifier))))))
+    alternative: (else_clause
+      body: (block
+        (call
+          function: (identifier)
+          arguments: (arguments
+            (identifier))))))
+  (for_statement
+    left: (pattern_list
+      (identifier))
+    right: (list
+      (tuple
+        (integer))
+      (tuple
+        (integer))
+      (tuple
+        (integer)))
+    body: (block
+      (identifier))))
+
+================================================================================
+Try statements
+================================================================================
+
+try:
+  a
+except b:
+  c
+except d as e:
+  f
+except g, h:
+  i
+except:
+  j
+
+try:
+  a
+except b:
+  c
+  d
+else:
+  e
+finally:
+  f
+
+try:
+  a
+except* b:
+  c
+except* d as e:
+  f
+else:
+  g
+finally:
+  h
+
+--------------------------------------------------------------------------------
+
+(module
+  (try_statement
+    body: (block
+      (identifier))
+    (except_clause
+      value: (identifier)
+      (block
+        (identifier)))
+    (except_clause
+      value: (as_pattern
+        (identifier)
+        alias: (as_pattern_target
+          (identifier)))
+      (block
+        (identifier)))
+    (except_clause
+      value: (identifier)
+      value: (identifier)
+      (block
+        (identifier)))
+    (except_clause
+      (block
+        (identifier))))
+  (try_statement
+    body: (block
+      (identifier))
+    (except_clause
+      value: (identifier)
+      (block
+        (identifier)
+        (identifier)))
+    (else_clause
+      body: (block
+        (identifier)))
+    (finally_clause
+      (block
+        (identifier))))
+  (try_statement
+    body: (block
+      (identifier))
+    (except_clause
+      value: (identifier)
+      (block
+        (identifier)))
+    (except_clause
+      value: (as_pattern
+        (identifier)
+        alias: (as_pattern_target
+          (identifier)))
+      (block
+        (identifier)))
+    (else_clause
+      body: (block
+        (identifier)))
+    (finally_clause
+      (block
+        (identifier)))))
+
+================================================================================
+With statements
+================================================================================
+
+with a as b:
+  c
+
+with (open('d') as d,
+      open('e') as e):
+  f
+
+with e as f, g as h,:
+  i
+
+--------------------------------------------------------------------------------
+
+(module
+  (with_statement
+    (with_clause
+      (with_item
+        (as_pattern
+          (identifier)
+          (as_pattern_target
+            (identifier)))))
+    (block
+      (identifier)))
+  (with_statement
+    (with_clause
+      (with_item
+        (as_pattern
+          (call
+            (identifier)
+            (arguments
+              (string
+                (string_start)
+                (string_content)
+                (string_end))))
+          (as_pattern_target
+            (identifier))))
+      (with_item
+        (as_pattern
+          (call
+            (identifier)
+            (arguments
+              (string
+                (string_start)
+                (string_content)
+                (string_end))))
+          (as_pattern_target
+            (identifier)))))
+    (block
+      (identifier)))
+  (with_statement
+    (with_clause
+      (with_item
+        (as_pattern
+          (identifier)
+          (as_pattern_target
+            (identifier))))
+      (with_item
+        (as_pattern
+          (identifier)
+          (as_pattern_target
+            (identifier)))))
+    (block
+      (identifier))))
+
+================================================================================
+Async Function definitions
+================================================================================
+
+async def a():
+  b
+
+async def c(d):
+  e
+
+async def g(g, h,):
+  i
+
+async def c(a: str):
+  a
+
+async def c(a: b.c):
+  a
+
+async def d(a: Sequence[T]) -> T:
+  a
+
+async def i(a, b=c, *c, **d):
+  a
+
+async def d(a: str) -> None:
+  return None
+
+async def d(a:str="default", b=c) -> None:
+  return None
+
+--------------------------------------------------------------------------------
+
+(module
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters))
+    body: (block
+      (identifier)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (parameter_decl
+          name: (identifier))))
+    body: (block
+      (identifier)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (parameter_decl
+          name: (identifier))
+        (parameter_decl
+          name: (identifier))))
+    body: (block
+      (identifier)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))))
+    body: (block
+      (identifier)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter_member
+            value: (identifier)
+            member: (identifier)))))
+    body: (block
+      (identifier)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (generic_parameter
+            value: (identifier)
+            parameters: (parameters
+              (parameter
+                (identifier))))))
+      return_type: (parameter
+        (identifier)))
+    body: (block
+      (identifier)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (parameter_decl
+          name: (identifier))
+        (default_parameter_decl
+          name: (identifier)
+          default: (parameter
+            (identifier)))
+        (variadic_parameter_decl
+          name: (identifier))
+        (variadic_parameter_decl
+          name: (identifier))))
+    body: (block
+      (identifier)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier))))
+      return_type: (none))
+    body: (block
+      (return_statement
+        (none))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (default_parameter_decl
+          (constrained_parameter_decl
+            name: (identifier)
+            constraint: (parameter
+              (identifier)))
+          default: (string
+            (string_start)
+            (string_content)
+            (string_end)))
+        (default_parameter_decl
+          name: (identifier)
+          default: (parameter
+            (identifier))))
+      return_type: (none))
+    body: (block
+      (return_statement
+        (none)))))
+
+================================================================================
+Function definitions
+================================================================================
+
+def e(*list: str):
+  pass
+
+def e(**list: str):
+  pass
+
+def f():
+  nonlocal a
+
+def g(h, i, /, j, *, k=100, **kwarg):
+  return h,i,j,k,kwarg
+
+def h(*a):
+  i((*a))
+  j(((*a)))
+
+def foo():
+    pass \
+\
+\
+
+--------------------------------------------------------------------------------
+
+(module
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (constrained_variadic_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))))
+    body: (block
+      (pass_statement)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (constrained_variadic_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))))
+    body: (block
+      (pass_statement)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters))
+    body: (block
+      (nonlocal_statement
+        (identifier))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (parameter_decl
+          name: (identifier))
+        (parameter_decl
+          name: (identifier))
+        (positional_only_marker)
+        (parameter_decl
+          name: (identifier))
+        (keyword_only_marker)
+        (default_parameter_decl
+          name: (identifier)
+          default: (integer))
+        (variadic_parameter_decl
+          name: (identifier))))
+    body: (block
+      (return_statement
+        (expression_list
+          (identifier)
+          (identifier)
+          (identifier)
+          (identifier)
+          (identifier)))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (variadic_parameter_decl
+          name: (identifier))))
+    body: (block
+      (call
+        function: (identifier)
+        arguments: (arguments
+          (parenthesized_expression
+            (list_splat
+              (identifier)))))
+      (call
+        function: (identifier)
+        arguments: (arguments
+          (parenthesized_expression
+            (parenthesized_expression
+              (list_splat
+                (identifier))))))))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters))
+    body: (block
+      (pass_statement)))
+  (line_continuation)
+  (line_continuation)
+  (line_continuation))
+
+================================================================================
+Empty blocks
+================================================================================
+
+# These are not actually valid python; blocks
+# must contain at least one statement. But we
+# allow them because error recovery for empty
+# blocks doesn't work very well otherwise.
+def a(b, c):
+
+if d:
+  print(e)
+  while f():
+
+--------------------------------------------------------------------------------
+
+(module
+  (comment)
+  (comment)
+  (comment)
+  (comment)
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters
+        (parameter_decl
+          name: (identifier))
+        (parameter_decl
+          name: (identifier))))
+    body: (block))
+  (if_statement
+    condition: (identifier)
+    consequence: (block
+      (call
+        function: (identifier)
+        arguments: (arguments
+          (identifier)))
+      (while_statement
+        condition: (call
+          function: (identifier)
+          arguments: (arguments))
+        body: (block)))))
+
+================================================================================
+Class definitions
+================================================================================
+
+class A:
+  def b(self):
+    return c
+class B():
+  pass
+class B(method1):
+  def method1(self):
+    return
+class C(method1, Sequence[T]):
+  pass
+class D(Sequence[T, U]):
+  pass
+
+--------------------------------------------------------------------------------
+
+(module
+  (struct_declaration
+    (struct_header
+      name: (identifier))
+    body: (block
+      (function_declaration
+        (function_signature
+          name: (identifier)
+          arguments: (callable_parameters
+            (parameter_decl
+              name: (identifier))))
+        body: (block
+          (return_statement
+            (identifier))))))
+  (struct_declaration
+    (struct_header
+      name: (identifier)
+      conformance: (conformance))
+    body: (block
+      (pass_statement)))
+  (struct_declaration
+    (struct_header
+      name: (identifier)
+      conformance: (conformance
+        (parameter
+          (identifier))))
+    body: (block
+      (function_declaration
+        (function_signature
+          name: (identifier)
+          arguments: (callable_parameters
+            (parameter_decl
+              name: (identifier))))
+        body: (block
+          (return_statement)))))
+  (struct_declaration
+    (struct_header
+      name: (identifier)
+      conformance: (conformance
+        (parameter
+          (identifier))
+        (generic_parameter
+          value: (identifier)
+          parameters: (parameters
+            (parameter
+              (identifier))))))
+    body: (block
+      (pass_statement)))
+  (struct_declaration
+    (struct_header
+      name: (identifier)
+      conformance: (conformance
+        (generic_parameter
+          value: (identifier)
+          parameters: (parameters
+            (parameter
+              (identifier))
+            (parameter
+              (identifier))))))
+    body: (block
+      (pass_statement))))
+
+================================================================================
+Class definitions with superclasses
+================================================================================
+
+class A(B, C):
+  def d():
+    e
+
+class A(metaclass=abc.ABCMeta):
+    pass
+
+class A(B, c="d"):
+    pass
+
+--------------------------------------------------------------------------------
+
+(module
+  (struct_declaration
+    (struct_header
+      name: (identifier)
+      conformance: (conformance
+        (parameter
+          (identifier))
+        (parameter
+          (identifier))))
+    body: (block
+      (function_declaration
+        (function_signature
+          name: (identifier)
+          arguments: (callable_parameters))
+        body: (block
+          (identifier)))))
+  (struct_declaration
+    (struct_header
+      name: (identifier)
+      conformance: (conformance
+        (named_parameter
+          name: (identifier)
+          value: (parameter_member
+            value: (identifier)
+            member: (identifier)))))
+    body: (block
+      (pass_statement)))
+  (struct_declaration
+    (struct_header
+      name: (identifier)
+      conformance: (conformance
+        (parameter
+          (identifier))
+        (named_parameter
+          name: (identifier)
+          value: (string
+            (string_start)
+            (string_content)
+            (string_end)))))
+    body: (block
+      (pass_statement))))
+
+================================================================================
+Decorated definitions
+================================================================================
+
+@a.b
+class C:
+  @d(1)
+  @e[2].f.g
+  def f():
+    g
+
+  @f()
+  async def f():
+    g
+
+@buttons[0].clicked.connect
+def spam():
+    ...
+
+--------------------------------------------------------------------------------
+
+(module
+  (decorated_declaration
+    (decorator
+      (member_access
+        value: (identifier)
+        member: (identifier)))
+    declaration: (struct_declaration
+      (struct_header
+        name: (identifier))
+      body: (block
+        (decorated_declaration
+          (decorator
+            (call
+              function: (identifier)
+              arguments: (arguments
+                (integer))))
+          (decorator
+            (member_access
+              value: (subscript
+                value: (identifier)
+                parameters: (parameters
+                  (integer)))
+              member: (identifier)
+              member: (identifier)))
+          declaration: (function_declaration
+            (function_signature
+              name: (identifier)
+              arguments: (callable_parameters))
+            body: (block
+              (identifier))))
+        (decorated_declaration
+          (decorator
+            (call
+              function: (identifier)
+              arguments: (arguments)))
+          declaration: (function_declaration
+            (function_signature
+              name: (identifier)
+              arguments: (callable_parameters))
+            body: (block
+              (identifier)))))))
+  (decorated_declaration
+    (decorator
+      (member_access
+        value: (subscript
+          value: (identifier)
+          parameters: (parameters
+            (integer)))
+        member: (identifier)
+        member: (identifier)))
+    declaration: (function_declaration
+      (function_signature
+        name: (identifier)
+        arguments: (callable_parameters))
+      body: (block
+        (ellipsis)))))
+
+================================================================================
+Raise statements
+================================================================================
+
+raise
+raise RuntimeError('NO')
+raise RunTimeError('NO') from e
+
+--------------------------------------------------------------------------------
+
+(module
+  (raise_statement)
+  (raise_statement
+    (call
+      (identifier)
+      (arguments
+        (string
+          (string_start)
+          (string_content)
+          (string_end)))))
+  (raise_statement
+    (call
+      (identifier)
+      (arguments
+        (string
+          (string_start)
+          (string_content)
+          (string_end))))
+    (identifier)))
+
+================================================================================
+Comments
+================================================================================
+
+print(a)
+# hi
+print(b) # bye
+print(c)
+
+--------------------------------------------------------------------------------
+
+(module
+  (call
+    function: (identifier)
+    arguments: (arguments
+      (identifier)))
+  (comment)
+  (call
+    function: (identifier)
+    arguments: (arguments
+      (identifier)))
+  (comment)
+  (call
+    function: (identifier)
+    arguments: (arguments
+      (identifier))))
+
+================================================================================
+Comments at different indentation levels
+================================================================================
+
+if a:
+  # one
+# two
+    # three
+  b
+    # four
+  c
+
+--------------------------------------------------------------------------------
+
+(module
+  (if_statement
+    condition: (identifier)
+    (comment)
+    (comment)
+    (comment)
+    consequence: (block
+      (identifier)
+      (comment)
+      (identifier))))
+
+================================================================================
+Comments after dedents
+================================================================================
+
+if a:
+  b
+
+# one
+c
+
+--------------------------------------------------------------------------------
+
+(module
+  (if_statement
+    condition: (identifier)
+    consequence: (block
+      (identifier)))
+  (comment)
+  (identifier))
+
+================================================================================
+Comments at the ends of indented blocks
+================================================================================
+
+if a:
+  b
+  # one
+  # two
+
+if c:
+  d
+    # three
+      # four
+
+def a():
+    if b:
+        b # comment
+    b # comment
+
+# five
+
+--------------------------------------------------------------------------------
+
+(module
+  (if_statement
+    condition: (identifier)
+    consequence: (block
+      (identifier)
+      (comment)
+      (comment)))
+  (if_statement
+    condition: (identifier)
+    consequence: (block
+      (identifier)
+      (comment)
+      (comment)))
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      arguments: (callable_parameters))
+    body: (block
+      (if_statement
+        condition: (identifier)
+        consequence: (block
+          (identifier)
+          (comment)))
+      (identifier)
+      (comment)))
+  (comment))
+
+================================================================================
+Newline tokens followed by comments
+================================================================================
+
+print("a")
+  # We need to recognize the newline *preceding* this comment, because there's no newline after it
+--------------------------------------------------------------------------------
+
+(module
+  (call
+    function: (identifier)
+    arguments: (arguments
+      (string
+        (string_start)
+        (string_content)
+        (string_end))))
+  (comment))
+
+================================================================================
+Global statements
+================================================================================
+
+global a
+global a, b
+
+--------------------------------------------------------------------------------
+
+(module
+  (global_statement
+    (identifier))
+  (global_statement
+    (identifier)
+    (identifier)))
+
+================================================================================
+Extra newlines
+================================================================================
+
+if a:
+
+
+    b()
+
+
+    c()
+
+
+    def d():
+
+
+        e()
+
+
+    f()
+
+--------------------------------------------------------------------------------
+
+(module
+  (if_statement
+    (identifier)
+    (block
+      (call
+        (identifier)
+        (arguments))
+      (call
+        (identifier)
+        (arguments))
+      (function_declaration
+        (function_signature
+          (identifier)
+          (callable_parameters))
+        (block
+          (call
+            (identifier)
+            (arguments))))
+      (call
+        (identifier)
+        (arguments)))))
+
+================================================================================
+Escaped newline
+================================================================================
+
+len("a") \
+or len("aa")
+
+--------------------------------------------------------------------------------
+
+(module
+  (boolean_operator
+    (call
+      (identifier)
+      (arguments
+        (string
+          (string_start)
+          (string_content)
+          (string_end))))
+    (line_continuation)
+    (call
+      (identifier)
+      (arguments
+        (string
+          (string_start)
+          (string_content)
+          (string_end))))))
+
+================================================================================
+Statements with semicolons
+================================================================================
+
+foo;
+foo; bar
+foo; bar;
+
+--------------------------------------------------------------------------------
+
+(module
+  (identifier)
+  (identifier)
+  (identifier)
+  (identifier)
+  (identifier))
+
+================================================================================
+Type Alias Statements
+================================================================================
+
+type Point = tuple[float, float]
+type Point[T] = tuple[T, T]
+type IntFunc[**P] = Callable[P, int]  # ParamSpec
+type LabeledTuple[*Ts] = tuple[str, *Ts]  # TypeVarTuple
+type HashableSequence[T: Hashable] = Sequence[T]  # TypeVar with bound
+type IntOrStrSequence[T: (int, str)] = Sequence[T]  # TypeVar with constraints
+
+--------------------------------------------------------------------------------
+
+(module
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier))
+    right: (generic_parameter
+      value: (identifier)
+      parameters: (parameters
+        (parameter
+          (identifier))
+        (parameter
+          (identifier)))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier)
+      parameters: (parameters_declaration
+        (parameter_decl
+          name: (identifier))))
+    right: (generic_parameter
+      value: (identifier)
+      parameters: (parameters
+        (parameter
+          (identifier))
+        (parameter
+          (identifier)))))
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier)
+      parameters: (parameters_declaration
+        (variadic_parameter_decl
+          name: (identifier))))
+    right: (generic_parameter
+      value: (identifier)
+      parameters: (parameters
+        (parameter
+          (identifier))
+        (parameter
+          (identifier)))))
+  (comment)
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier)
+      parameters: (parameters_declaration
+        (variadic_parameter_decl
+          name: (identifier))))
+    right: (generic_parameter
+      value: (identifier)
+      parameters: (parameters
+        (parameter
+          (identifier))
+        (variadic_parameter
+          (parameter
+            (identifier))))))
+  (comment)
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter
+            (identifier)))))
+    right: (generic_parameter
+      value: (identifier)
+      parameters: (parameters
+        (parameter
+          (identifier)))))
+  (comment)
+  (comptime_statement
+    left: (comptime_parameter
+      name: (identifier)
+      parameters: (parameters_declaration
+        (constrained_parameter_decl
+          name: (identifier)
+          constraint: (parameter_tuple
+            (parameter
+              (identifier))
+            (parameter
+              (identifier))))))
+    right: (generic_parameter
+      value: (identifier)
+      parameters: (parameters
+        (parameter
+          (identifier)))))
+  (comment))
+
+================================================================================
+Generic Function Definitions
+================================================================================
+
+def more_generic[T, *Ts, **P]():
+    type TA[T2, *Ts2, **P2] = tuple[Callable[P, tuple[T, *Ts]], Callable[P2, tuple[T2, *Ts2]]]
+    return TA
+
+--------------------------------------------------------------------------------
+
+(module
+  (function_declaration
+    (function_signature
+      name: (identifier)
+      parameters: (parameters_declaration
+        (parameter_decl
+          name: (identifier))
+        (variadic_parameter_decl
+          name: (identifier))
+        (variadic_parameter_decl
+          name: (identifier)))
+      arguments: (callable_parameters))
+    body: (block
+      (comptime_statement
+        left: (comptime_parameter
+          name: (identifier)
+          parameters: (parameters_declaration
+            (parameter_decl
+              name: (identifier))
+            (variadic_parameter_decl
+              name: (identifier))
+            (variadic_parameter_decl
+              name: (identifier))))
+        right: (generic_parameter
+          value: (identifier)
+          parameters: (parameters
+            (generic_parameter
+              value: (identifier)
+              parameters: (parameters
+                (parameter
+                  (identifier))
+                (generic_parameter
+                  value: (identifier)
+                  parameters: (parameters
+                    (parameter
+                      (identifier))
+                    (variadic_parameter
+                      (parameter
+                        (identifier)))))))
+            (generic_parameter
+              value: (identifier)
+              parameters: (parameters
+                (parameter
+                  (identifier))
+                (generic_parameter
+                  value: (identifier)
+                  parameters: (parameters
+                    (parameter
+                      (identifier))
+                    (variadic_parameter
+                      (parameter
+                        (identifier))))))))))
+      (return_statement
+        (identifier)))))

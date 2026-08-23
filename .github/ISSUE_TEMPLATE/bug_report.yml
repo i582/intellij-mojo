@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a problem with the Mojo plugin
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the actual and expected behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: source
+    attributes:
+      label: Mojo source
+      description: Provide the smallest `.mojo` example that reproduces the problem.
+      render: mojo
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+    validations:
+      required: true
+
+  - type: input
+    id: ide-version
+    attributes:
+      label: IDE and build number
+      placeholder: IntelliJ IDEA 2025.2.6, build 252.28539.33
+    validations:
+      required: true
+
+  - type: input
+    id: mojo-version
+    attributes:
+      label: Mojo version
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or stack trace
+      render: shell

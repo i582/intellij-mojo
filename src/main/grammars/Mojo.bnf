@@ -1,0 +1,515 @@
+{
+  parserClass="com.github.petrmakhnev.intellijmojo.lang.parser.MojoParser"
+  parserUtilClass="com.github.petrmakhnev.intellijmojo.lang.parser.MojoParserUtil"
+  extends="com.intellij.extapi.psi.ASTWrapperPsiElement"
+  psiClassPrefix="Mojo"
+  psiImplClassSuffix="Impl"
+  psiPackage="com.github.petrmakhnev.intellijmojo.lang.psi"
+  psiImplPackage="com.github.petrmakhnev.intellijmojo.lang.psi.impl"
+  elementTypeHolderClass="com.github.petrmakhnev.intellijmojo.lang.psi.MojoTypes"
+  elementTypeClass="com.github.petrmakhnev.intellijmojo.lang.psi.MojoElementType"
+  tokenTypeClass="com.github.petrmakhnev.intellijmojo.lang.lexer.MojoTokenType"
+
+  // Concrete expression nodes share one PSI interface.
+  extends("^(?!Type).+Expression")=Expression
+  elementType(".+BinExpression")=BinExpression
+  elementType(".+BinOp")=BinaryOp
+
+  tokens = [
+    STATEMENT_BREAK="statement break"
+    INDENT="indent"
+    DEDENT="dedent"
+    INCONSISTENT_DEDENT="inconsistent dedent"
+    LINE_BREAK="line break"
+    COMMENT="comment"
+
+    IDENTIFIER="name_identifier"
+    ESCAPED_IDENTIFIER="escaped name_identifier"
+    INTEGER_LITERAL="integer literal"
+    FLOAT_LITERAL="float literal"
+    STRING_LITERAL="string literal"
+    TEMPLATE_STRING_LITERAL="template string literal"
+
+    FALSE="False"
+    NONE="None"
+    TRUE="True"
+    SELF="Self"
+    ALIAS="alias"
+    AND="and"
+    AS="as"
+    ASSERT="assert"
+    ASYNC="async"
+    AWAIT="await"
+    BREAK="break"
+    CASE="case"
+    CLASS="class"
+    COMPTIME="comptime"
+    CONTINUE="continue"
+    DEF="def"
+    DEINIT="deinit"
+    DEL="del"
+    ELIF="elif"
+    ELSE="else"
+    EXCEPT="except"
+    FINALLY="finally"
+    FN="fn"
+    FOR="for"
+    FROM="from"
+    GLOBAL="global"
+    IF="if"
+    IMM="imm"
+    IMPORT="import"
+    IN="in"
+    IS="is"
+    LAMBDA="lambda"
+    MATCH="match"
+    MUT="mut"
+    NONLOCAL="nonlocal"
+    NOT="not"
+    OR="or"
+    OUT="out"
+    PASS="pass"
+    RAISE="raise"
+    RAISES="raises"
+    READ="read"
+    REF="ref"
+    RETURN="return"
+    STRUCT="struct"
+    THIN="thin"
+    TRAIT="trait"
+    TRY="try"
+    TYPE="type"
+    VAR="var"
+    WHERE="where"
+    WHILE="while"
+    WITH="with"
+    YIELD="yield"
+    ABI="abi"
+    CAPTURING="capturing"
+    ESCAPING="escaping"
+    OWNED="owned"
+
+    EXTENSION="__extension"
+    MLIR_REGION="__mlir_region"
+    MLIR_ATTR="__mlir_attr"
+    MLIR_DEFERRED_ATTR="__mlir_deferred_attr"
+    MLIR_TYPE="__mlir_type"
+    MLIR_DEFERRED_TYPE="__mlir_deferred_type"
+    MLIR_OP="__mlir_op"
+
+    PERCENT="%"
+    AMP="&"
+    LPAR="("
+    RPAR=")"
+    STAR="*"
+    PLUS="+"
+    COMMA=","
+    MINUS="-"
+    DOT="."
+    SLASH="/"
+    COLON=":"
+    SEMICOLON=";"
+    LT="<"
+    EQ="="
+    GT=">"
+    AT="@"
+    LBRACKET="["
+    RBRACKET="]"
+    CARET="^"
+    LBRACE="{"
+    PIPE="|"
+    RBRACE="}"
+    TILDE="~"
+    UNDERSCORE="_"
+    BANG="!"
+
+    NE="!="
+    PERCENT_EQ="%="
+    AMP_EQ="&="
+    POWER="**"
+    STAR_EQ="*="
+    PLUS_EQ="+="
+    MINUS_EQ="-="
+    ARROW="->"
+    FLOOR_DIV="//"
+    SLASH_EQ="/="
+    WALRUS=":="
+    SHIFT_LEFT="<<"
+    LE="<="
+    NE_OLD="<>"
+    EQ_EQ="=="
+    GE=">="
+    SHIFT_RIGHT=">>"
+    AT_EQ="@="
+    CARET_EQ="^="
+    PIPE_EQ="|="
+    POWER_EQ="**="
+    ELLIPSIS="..."
+    FLOOR_DIV_EQ="//="
+    SHIFT_LEFT_EQ="<<="
+    SHIFT_RIGHT_EQ=">>="
+  ]
+}
+
+MojoFile ::= Statement*
+
+private Statement ::= DecoratedDeclaration
+                    | IfStatement
+                    | ForStatement
+                    | WhileStatement
+                    | TryStatement
+                    | WithStatement
+                    | MatchStatement
+                    | FunctionDeclaration
+                    | MlirRegionDeclaration
+                    | StructDeclaration
+                    | ExtensionDeclaration
+                    | TraitDeclaration
+                    | SimpleStatementList
+                    | INCONSISTENT_DEDENT
+
+SimpleStatementList ::= SimpleStatement (';' SimpleStatement)* ';'? STATEMENT_BREAK
+  {pin=1}
+
+private SimpleStatement ::= ImportStatement
+                           | AssertStatement
+                           | ReturnStatement
+                           | DeleteStatement
+                           | RaiseStatement
+                           | PassStatement
+                           | BreakStatement
+                           | ContinueStatement
+                           | GlobalStatement
+                           | NonlocalStatement
+                           | ComptimeStatement
+                           | AssignmentStatement
+                           | AugmentedAssignmentStatement
+                           | ExpressionStatement
+
+// Imports and simple statements
+
+ImportStatement ::= ModuleImportStatement | SelectiveImportStatement | FutureImportStatement
+
+ModuleImportStatement ::= 'import' ImportItem (',' ImportItem)* ','? {pin=1}
+SelectiveImportStatement ::= 'from' RelativeModule 'import' ImportTargets {pin=1}
+FutureImportStatement ::= 'from' FutureModule 'import' ImportTargets {pin=1}
+
+private FutureModule ::= IDENTIFIER
+private RelativeModule ::= '.'* DottedName?
+private ImportTargets ::= '*' | ImportItemList | '(' ImportItemList ')'
+private ImportItemList ::= ImportItem (',' ImportItem)* ','?
+private ImportItem ::= DottedName ('as' NameIdentifier)?
+DottedName ::= NameIdentifier ('.' NameIdentifier)*
+
+AssertStatement ::= 'comptime'? 'assert' ExpressionSequence {pin=2}
+ReturnStatement ::= 'return' ExpressionSequence? {pin=1}
+DeleteStatement ::= 'del' ExpressionSequence {pin=1}
+RaiseStatement ::= 'raise' ExpressionSequence? ('from' Expression)? {pin=1}
+PassStatement ::= 'pass'
+BreakStatement ::= 'break'
+ContinueStatement ::= 'continue'
+GlobalStatement ::= 'global' NameIdentifier (',' NameIdentifier)* {pin=1}
+NonlocalStatement ::= 'nonlocal' NameIdentifier (',' NameIdentifier)* {pin=1}
+
+ComptimeStatement ::= ('comptime' | 'type') DeclarationName TypeParameterList?
+                       TypeAnnotation?
+                       WhereClause*
+                       ('=' ComptimeRhs)? {pin=1}
+
+AssignmentStatement ::= DeclarationConvention? AssignmentTarget TypeAnnotation? '=' AssignmentRhs ('=' AssignmentRhs)*
+                       | DeclarationConvention ConstrainedTarget
+AugmentedAssignmentStatement ::= AssignmentTarget AugmentedAssignmentOperator AssignmentRhs
+ExpressionStatement ::= ExpressionSequence
+
+private DeclarationConvention ::= 'var' | 'ref'
+private ConstrainedTarget ::= AssignmentTarget TypeAnnotation
+private TypeAnnotation ::= ':' TypeExpression
+private AssignmentTarget ::= PatternList | AssignmentPrimary AssignmentSuffix*
+private AssignmentPrimary ::= NameIdentifier | '_' | ParenthesizedExpression | ListExpression
+private AssignmentSuffix ::= ArgumentList | SubscriptSuffix | MemberSuffix | TransferSuffix
+private AssignmentRhs ::= YieldExpression | ExpressionSequence | MlirAttribute
+private ComptimeRhs ::= FunctionType | MlirAttribute | MlirTypeValue | Expression | TypeExpression
+private AugmentedAssignmentOperator ::= '+=' | '-=' | '*=' | '/=' | '@='
+                                        | '//=' | '%=' | '**=' | '>>='
+                                        | '<<=' | '&=' | '^=' | '|='
+
+// Compound statements and suites
+
+IfStatement ::= 'comptime'? 'if' Expression ':' Suite ElifClause* ElseClause? {pin=2}
+ElifClause ::= 'elif' Expression ':' Suite {pin=1}
+ElseClause ::= 'else' ':' Suite {pin=1}
+
+ForStatement ::= ('async' | 'comptime')? 'for' DeclarationConvention? PatternList 'in' ExpressionSequence ':' Suite ElseClause? {pin=2}
+WhileStatement ::= 'while' Expression ':' Suite ElseClause? {pin=1}
+
+TryStatement ::= 'try' ':' Suite ExceptClause* ElseClause? FinallyClause? {pin=1}
+ExceptClause ::= 'except' '*'? (ExpressionSequence ('as' Expression)?)? ':' Suite {pin=1}
+FinallyClause ::= 'finally' ':' Suite {pin=1}
+
+WithStatement ::= 'async'? 'with' WithClause ':' Suite {pin=2}
+WithClause ::= WithItem (',' WithItem)* ','?
+              | '(' WithItem (',' WithItem)* ','? ')'
+WithItem ::= Expression ('as' Expression)?
+
+MatchStatement ::= 'match' ExpressionSequence ':' MatchSuite {pin=3}
+private MatchSuite ::= STATEMENT_BREAK INDENT CaseClause* DEDENT
+CaseClause ::= 'case' CasePatternList ('if' Expression)? ':' Suite {pin=1}
+
+private Suite ::= SimpleStatementList | STATEMENT_BREAK INDENT Statement* DEDENT
+
+// Declarations
+
+FunctionDeclaration ::= FunctionSignature ':' Suite {pin=1}
+FunctionSignature ::= 'async'? ('def' | 'fn') DeclarationName TypeParameterList?
+                       CallableParameters FunctionEffects? CaptureParameters?
+                       ReturnType? WhereClause* {pin=2}
+
+FunctionEffects ::= FunctionEffect+
+private FunctionEffect ::= RaisesEffect | AbiEffect | 'thin' | 'capturing' | 'escaping'
+RaisesEffect ::= 'raises' TypeExpression?
+AbiEffect ::= 'abi' '(' StringValue ')'
+ReturnType ::= '->' ParameterizedRefConvention? TypeExpression {pin=1}
+
+StructDeclaration ::= StructHeader ':' Suite {pin=1}
+StructHeader ::= ('struct' | 'class') DeclarationName TypeParameterList? Conformance? WhereClause* {pin=1}
+TraitDeclaration ::= 'trait' DeclarationName TypeParameterList? Conformance? WhereClause* ':' Suite {pin=1}
+ExtensionDeclaration ::= '__extension' TypeExpression TypeParameterList? WhereClause* ':' Suite {pin=1}
+
+MlirRegionDeclaration ::= '__mlir_region' DeclarationName CallableParameters ':' Suite {pin=1}
+
+DecoratedDeclaration ::= Decorator+ DecoratorTarget {pin=1}
+Decorator ::= '@' Expression STATEMENT_BREAK {pin=1}
+private DecoratorTarget ::= FunctionDeclaration | StructDeclaration | TraitDeclaration
+                           | ComptimeStatement STATEMENT_BREAK | AssignmentStatement STATEMENT_BREAK
+
+DeclarationName ::= NameIdentifier
+
+// Parameters, conventions, effects, conformance, and where clauses
+
+TypeParameterList ::= '[' ParameterDeclaration (',' ParameterDeclaration)* ','? ']'
+CallableParameters ::= '(' ParameterList? ')'
+CaptureParameters ::= '{' (CaptureParameter (',' CaptureParameter)* ','?)? '}'
+Conformance ::= '(' (ConformanceParameter (',' ConformanceParameter)* ','?)? ')'
+
+private ParameterList ::= ParameterDeclaration (',' ParameterDeclaration)* ','?
+
+ParameterDeclaration ::= PositionalOnlyMarker
+                        | KeywordOnlyMarker
+                        | InferOnlyMarker
+                        | Convention? VariadicMarker? NameIdentifier ConventionParameters?
+                          TypeAnnotation? DefaultValue?
+
+CaptureParameter ::= RefConvention ParameterDeclaration?
+                    | ParameterDeclaration '^'
+                    | 'var' ParameterDeclaration? '^'?
+                    | ParameterDeclaration
+
+ConformanceParameter ::= VariadicMarker? TypeExpression WhereClause*
+
+private DefaultValue ::= '=' Expression
+private VariadicMarker ::= '*' | '**'
+private PositionalOnlyMarker ::= '/'
+private KeywordOnlyMarker ::= '*'
+private InferOnlyMarker ::= '//'
+
+private Convention ::= 'deinit' | 'out' | 'var' | RefConvention | ParameterizedRefConvention | 'owned' | 'read'
+private RefConvention ::= 'imm' | 'mut' | 'ref'
+ParameterizedRefConvention ::= 'ref' ConventionParameters
+ConventionParameters ::= '[' (TypeExpression | '_') (',' (TypeExpression | '_'))* ','? ']'
+
+WhereClause ::= 'where' (MlirAttribute | Expression) {pin=1}
+
+FunctionType ::= 'def' TypeParameterList? CallableParameters FunctionEffects? ReturnType? WhereClause*
+ParenthesizedFunctionType ::= '(' FunctionType ')'
+
+// MLIR forms
+
+MlirAttribute ::= ('__mlir_attr' | '__mlir_deferred_attr')
+              ('.' (ESCAPED_IDENTIFIER | NameIdentifier)
+              | '[' MlirParameter (',' MlirParameter)* ','? ']') {pin=1 extends=Expression}
+
+MlirTypeValue ::= ('__mlir_type' | '__mlir_deferred_type')
+              ('.' (ESCAPED_IDENTIFIER | NameIdentifier)
+              | '[' MlirParameter (',' MlirParameter)* ','? ']') {pin=1 extends=Expression}
+
+MlirParameter ::= ESCAPED_IDENTIFIER | NamedParameter | Expression | TypeExpression
+MlirOpExpression ::= '__mlir_op' '.' ESCAPED_IDENTIFIER MlirOpParameters? ArgumentList {pin=1}
+MlirOpParameters ::= '[' (NamedParameter (',' NamedParameter)* ','?)? ']'
+
+NamedParameter ::= NameIdentifier '=' (MlirAttribute | MlirTypeValue | Expression | TypeExpression)
+
+// Match and assignment patterns
+
+CasePatternList ::= CasePattern (',' CasePattern)* ','?
+CasePattern ::= PatternUnion ('as' NameIdentifier)?
+private PatternUnion ::= PatternAtom ('|' PatternAtom)*
+
+private PatternAtom ::= ClassPattern
+                       | SplatPattern
+                       | ListPattern
+                       | TuplePattern
+                       | DictPattern
+                       | LiteralExpression
+                       | DottedName
+                       | '_'
+
+ClassPattern ::= DottedName '(' CasePatternList? ')'
+SplatPattern ::= ('*' | '**') (NameIdentifier | '_')
+ListPattern ::= '[' CasePatternList? ']'
+TuplePattern ::= '(' CasePatternList? ')'
+DictPattern ::= '{' (DictPatternItem (',' DictPatternItem)* ','?)? '}'
+private DictPatternItem ::= SplatPattern | PatternAtom ':' CasePattern
+
+PatternList ::= Pattern (',' Pattern)* ','?
+Pattern ::= ListPattern | TuplePattern | SplatPattern | PatternPostfixTarget | NameIdentifier | '_'
+private PatternPostfixTarget ::= NameIdentifier PatternPostfixSuffix+
+private PatternPostfixSuffix ::= ArgumentList | SubscriptSuffix | MemberSuffix | TransferSuffix
+
+// Expressions, ordered from lowest to highest precedence. Concrete variants
+// avoid technical precedence wrappers in PSI.
+
+ExpressionSequence ::= Expression (',' Expression)* ','?
+
+Expression ::= LambdaExpression
+             | YieldExpression
+             | AssignmentExpression
+             | ConditionalExpression
+             | OrBinExpression
+             | AndBinExpression
+             | ComparisonBinExpression
+             | BitOrBinExpression
+             | BitXorBinExpression
+             | BitAndBinExpression
+             | ShiftBinExpression
+             | AddBinExpression
+             | MulBinExpression
+             | NotExpression
+             | PrefixExpression
+             | PowerBinExpression
+             | CallExpression
+             | SubscriptExpression
+             | MemberExpression
+             | TransferExpression
+             | AtomicExpression
+
+fake BinExpression ::= Expression BinaryOp Expression
+fake BinaryOp ::= 'or' | 'and'
+                | '<' | '<=' | '==' | '!=' | '<>' | '>=' | '>' | 'in' | 'is'
+                | '|' | '^' | '&' | '<<' | '>>' | '+' | '-'
+                | '*' | '@' | '/' | '//' | '%' | '**'
+
+LambdaExpression ::= 'lambda' LambdaSignature ':' Expression {pin=1}
+private LambdaSignature ::= TypedLambdaSignature | ParameterList?
+private TypedLambdaSignature ::= TypeParameterList CallableParameters? FunctionEffects? CaptureParameters? ReturnType?
+                                 | CallableParameters FunctionEffects? CaptureParameters? ReturnType?
+                                 | FunctionEffects CaptureParameters? ReturnType?
+                                 | CaptureParameters ReturnType?
+                                 | ReturnType
+
+YieldExpression ::= 'yield' ('from' Expression | ExpressionSequence)? {pin=1}
+AssignmentExpression ::= DeclarationConvention? NameIdentifier ':=' Expression {pin=3 rightAssociative=true}
+
+ConditionalExpression ::= Expression 'if' Expression 'else' Expression {rightAssociative=true}
+OrBinExpression ::= Expression OrBinOp Expression
+AndBinExpression ::= Expression AndBinOp Expression
+ComparisonBinExpression ::= Expression ComparisonBinOp Expression
+BitOrBinExpression ::= Expression BitOrBinOp Expression
+BitXorBinExpression ::= Expression BitXorBinOp Expression
+BitAndBinExpression ::= Expression BitAndBinOp Expression
+ShiftBinExpression ::= Expression ShiftBinOp Expression
+AddBinExpression ::= Expression AddBinOp Expression
+MulBinExpression ::= Expression MulBinOp Expression
+NotExpression ::= 'not' Expression
+PrefixExpression ::= ('+' | '-' | '~' | 'await') Expression
+PowerBinExpression ::= Expression PowerBinOp Expression {rightAssociative=true}
+
+OrBinOp ::= 'or'
+AndBinOp ::= 'and'
+ComparisonBinOp ::= ComparisonOperator
+private ComparisonOperator ::= '<' | '<=' | '==' | '!=' | '<>' | '>=' | '>' | 'in' | 'not' 'in' | 'is' 'not'?
+BitOrBinOp ::= '|'
+BitXorBinOp ::= '^' &ExpressionStart
+BitAndBinOp ::= '&'
+ShiftBinOp ::= '<<' | '>>'
+AddBinOp ::= '+' | '-'
+MulBinOp ::= '*' | '@' | '/' | '//' | '%'
+PowerBinOp ::= '**'
+
+CallExpression ::= Expression ArgumentList {rightAssociative=true}
+SubscriptExpression ::= Expression SubscriptSuffix
+MemberExpression ::= Expression MemberSuffix
+TransferExpression ::= Expression TransferSuffix
+
+private MemberSuffix ::= '.' NameIdentifier
+private TransferSuffix ::= '^' !ExpressionStart
+
+ArgumentList ::= '(' ArgumentItems? ')'
+private ArgumentItems ::= Argument (',' Argument)* ','? ComprehensionClauses?
+Argument ::= '**' Expression | '*' Expression | NamedParameter | Expression
+
+private SubscriptSuffix ::= '[' (SubscriptItem (',' SubscriptItem)* ','?)? ']'
+SubscriptItem ::= SliceExpression | '*' TypeExpression | '**' TypeExpression | NamedParameter | FunctionType | Expression
+SliceExpression ::= Expression? ':' Expression? (':' Expression?)?
+
+private AtomicExpression ::= LiteralExpression
+               | ReferenceExpression
+               | UnderscoreExpression
+               | MlirAttribute
+               | MlirTypeValue
+               | MlirOpExpression
+               | ParenthesizedExpression
+               | ListExpression
+               | BraceExpression
+
+ReferenceExpression ::= NameIdentifier
+UnderscoreExpression ::= '_'
+
+LiteralExpression ::= INTEGER_LITERAL | FLOAT_LITERAL | StringValue
+                     | 'True' | 'False' | 'None' | 'Self' | '...'
+StringValue ::= (STRING_LITERAL | TEMPLATE_STRING_LITERAL)+
+
+ParenthesizedExpression ::= 'comptime'? '(' ParenthesizedContents? ')'
+private ParenthesizedContents ::= YieldExpression
+                                 | Expression ComprehensionClauses
+                                 | Expression (',' Expression)* ','?
+
+ListExpression ::= '[' CollectionContents? ']'
+private CollectionContents ::= CollectionElement
+                                (ComprehensionClauses | (',' CollectionElement)* ','?)
+private CollectionElement ::= '*'? (YieldExpression | Expression)
+
+BraceExpression ::= '{' BraceContents? '}'
+private BraceContents ::= DictionaryItem
+                          (ComprehensionClauses | (',' DictionaryItem)* ','?)
+private DictionaryItem ::= '**' Expression | NamedParameter | Expression (':' Expression)?
+
+ComprehensionClauses ::= ForInClause (ForInClause | IfClause)*
+ForInClause ::= 'async'? 'for' PatternList 'in' ComprehensionExpressionSequence {pin=2}
+private ComprehensionExpressionSequence ::= <<parseComprehensionExpression>> (',' <<parseComprehensionExpression>>)* ','?
+IfClause ::= 'if' Expression {pin=1}
+
+TypeExpression ::= FunctionType
+                  | ParenthesizedFunctionType
+                  | MlirTypeValue
+                  | TypeUnion
+
+TypeUnion ::= TypeComposition ('|' TypeComposition)*
+TypeComposition ::= TypeAtom ('&' TypeAtom)*
+private TypeAtom ::= FunctionType
+                    | ParenthesizedFunctionType
+                    | VariadicMarker? TypePrimary TypePostfixSuffix*
+private TypePrimary ::= LiteralExpression | NameIdentifier | '_' | MlirAttribute | MlirTypeValue
+                       | ParenthesizedExpression | ListExpression | BraceExpression
+private TypePostfixSuffix ::= ArgumentList | SubscriptSuffix | MemberSuffix | TransferSuffix
+
+NameIdentifier ::= IDENTIFIER | ESCAPED_IDENTIFIER | 'match'
+                  | 'case'
+                  | 'alias' | 'deinit' | 'out' | 'imm' | 'mut' | 'raises'
+                  | 'read' | 'owned' | 'thin' | 'abi' | 'capturing' | 'escaping'
+                  | 'type' | 'fn'
+
+private ExpressionStart ::= INTEGER_LITERAL | FLOAT_LITERAL | STRING_LITERAL | TEMPLATE_STRING_LITERAL
+                           | 'True' | 'False' | 'None' | 'Self' | '...' | IDENTIFIER | ESCAPED_IDENTIFIER
+                           | 'match' | '__mlir_attr' | '__mlir_deferred_attr' | '__mlir_type' | '__mlir_deferred_type'
+                           | '__mlir_op' | '(' | '[' | '{' | 'lambda' | 'yield' | 'await' | 'not'
+                           | '+' | '-' | '~' | 'comptime' | 'def'
