@@ -38,6 +38,8 @@
         <lang.quoteHandler
                 language="Mojo"
                 implementationClass="com.github.petrmakhnev.intellijmojo.lang.editor.MojoQuoteHandler"/>
+        <lineIndentProvider
+                implementation="com.github.petrmakhnev.intellijmojo.lang.editor.MojoLineIndentProvider"/>
         <lang.foldingBuilder
                 language="Mojo"
                 implementationClass="com.github.petrmakhnev.intellijmojo.lang.editor.MojoFoldingBuilder"/>
