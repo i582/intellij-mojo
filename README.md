@@ -10,6 +10,7 @@ Native Mojo language support for IntelliJ Platform IDEs.
 - Highlighting for declarations, calls, parameters, fields, decorators, and built-in types.
 - Toggle line comments with `#`.
 - Automatic pairs for brackets and single, double, and triple quotes.
+- Mojo file creation from the **New** menu in the Project tool window.
 - TODO indexing in comments.
 
 ## Install a development build

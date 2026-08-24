@@ -17,6 +17,7 @@
                 implementationClass="com.github.petrmakhnev.intellijmojo.lang.MojoFileType"
                 fieldName="INSTANCE"
                 extensions="mojo"/>
+        <internalFileTemplate name="Mojo File"/>
         <lang.parserDefinition
                 language="Mojo"
                 implementationClass="com.github.petrmakhnev.intellijmojo.lang.parser.MojoParserDefinition"/>
@@ -71,4 +72,14 @@
                 class="com.github.petrmakhnev.intellijmojo.lang.psi.MojoTypes"
                 externalIdPrefix="mojo."/>
     </extensions>
+
+    <actions>
+        <action
+                id="Mojo.NewFile"
+                class="com.github.petrmakhnev.intellijmojo.ide.actions.CreateMojoFileAction"
+                text="Mojo File"
+                description="Create a new Mojo source file">
+            <add-to-group group-id="NewGroup" anchor="after" relative-to-action="NewFile"/>
+        </action>
+    </actions>
 </idea-plugin>
