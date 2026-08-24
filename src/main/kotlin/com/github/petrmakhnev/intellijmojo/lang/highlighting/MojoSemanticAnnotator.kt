@@ -4,7 +4,8 @@ import com.github.petrmakhnev.intellijmojo.ide.colors.MojoColor
 import com.github.petrmakhnev.intellijmojo.lang.psi.*
 import com.github.petrmakhnev.intellijmojo.lang.resolve.MojoBindingKind
 import com.github.petrmakhnev.intellijmojo.lang.resolve.staticBindingKind
-import com.github.petrmakhnev.intellijmojo.lang.type.MojoTy
+import com.github.petrmakhnev.intellijmojo.lang.type.MOJO_BUILTIN_TYPE_NAMES
+import com.github.petrmakhnev.intellijmojo.lang.type.isTypeValuedComptime
 import com.github.petrmakhnev.intellijmojo.lang.type.mojoInference
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
@@ -84,7 +85,7 @@ class MojoSemanticAnnotator : Annotator {
     private fun referenceColor(reference: MojoReferenceExpression): MojoColor? {
         val name = reference.nameIdentifier
         if (isDecoratorName(name)) return MojoColor.DECORATOR
-        if (name.identifierText() in BUILTIN_TYPE_NAMES) return MojoColor.BUILTIN_TYPE
+        if (name.identifierText() in MOJO_BUILTIN_TYPE_NAMES) return MojoColor.BUILTIN_TYPE
         resolvedColor(name, isCallTarget(reference))?.let { return it }
         if (isTypeName(name)) return MojoColor.TYPE_REFERENCE
         if (isCallTarget(reference)) return MojoColor.FUNCTION_CALL
@@ -197,43 +198,6 @@ class MojoSemanticAnnotator : Annotator {
         MojoColor.CONSTANT
     }
 
-    private fun MojoComptimeStatement.isTypeValuedComptime(
-        visited: MutableSet<MojoComptimeStatement> = linkedSetOf(),
-    ): Boolean {
-        if (hasToken(MojoTypes.TYPE)) return true
-        if (mojoInference?.getType(this) is MojoTy.TypeValue) return true
-        if (!visited.add(this)) return false
-        if (functionType != null) return true
-
-        val equalsOffset = node.findChildByType(MojoTypes.EQ)?.startOffset
-        if (equalsOffset != null && typeExpressionList.any { it.textOffset > equalsOffset }) return true
-        expression?.let { return it.isTypeValueExpression(visited) }
-
-        val declaredType = typeExpressionList.firstOrNull() ?: return false
-        return PsiTreeUtil.findChildrenOfType(declaredType, MojoNameIdentifier::class.java).any { name ->
-            name.identifierText() == "AnyType" || resolveTargets(name).any { it is MojoTraitDeclaration }
-        }
-    }
-
-    private fun MojoExpression.isTypeValueExpression(visited: MutableSet<MojoComptimeStatement>): Boolean = when (this) {
-        is MojoLiteralExpression -> hasToken(MojoTypes.SELF)
-        is MojoReferenceExpression, is MojoMemberExpression -> {
-            val name = when (this) {
-                is MojoReferenceExpression -> nameIdentifier
-                is MojoMemberExpression -> nameIdentifier
-                else -> error("unreachable")
-            }
-            name.identifierText() in BUILTIN_TYPE_NAMES || resolveTargets(name).any { target ->
-                target is MojoStructDeclaration || target is MojoTraitDeclaration ||
-                    target is MojoComptimeStatement && target.isTypeValuedComptime(visited)
-            }
-        }
-        is MojoSubscriptExpression -> expression.isTypeValueExpression(visited)
-        is MojoTransferExpression -> expression.isTypeValueExpression(visited)
-        is MojoParenthesizedExpression -> expressionList.singleOrNull()?.isTypeValueExpression(visited) == true
-        else -> false
-    }
-
     private fun bindingColor(name: MojoNameIdentifier): MojoColor? {
         if (isAssignmentTargetField(name)) return MojoColor.FIELD
 
@@ -320,7 +284,7 @@ class MojoSemanticAnnotator : Annotator {
     private fun isTypeName(name: MojoNameIdentifier): Boolean = parentOf<MojoTypeExpression>(name) != null
 
     private fun typeColor(name: String): MojoColor =
-        if (name.removeSurrounding("`") in BUILTIN_TYPE_NAMES) MojoColor.BUILTIN_TYPE else MojoColor.TYPE_REFERENCE
+        if (name.removeSurrounding("`") in MOJO_BUILTIN_TYPE_NAMES) MojoColor.BUILTIN_TYPE else MojoColor.TYPE_REFERENCE
 
     private fun MojoNameIdentifier.identifierText(): String = text.removeSurrounding("`")
 
@@ -339,46 +303,5 @@ class MojoSemanticAnnotator : Annotator {
 
     private inline fun <reified T : PsiElement> parentOf(element: PsiElement): T? =
         PsiTreeUtil.getParentOfType(element, T::class.java, true)
-
-    private companion object {
-        val BUILTIN_TYPE_NAMES = setOf(
-            "Bool",
-            "Byte",
-            "DType",
-            "SIMD",
-            "SIMDLength",
-            "Scalar",
-            "Int",
-            "Int8",
-            "Int16",
-            "Int32",
-            "Int64",
-            "Int128",
-            "Int256",
-            "UInt",
-            "UInt8",
-            "UInt16",
-            "UInt32",
-            "UInt64",
-            "UInt128",
-            "UInt256",
-            "BFloat16",
-            "Float8_e4m3fn",
-            "Float8_e4m3fnuz",
-            "Float8_e5m2",
-            "Float8_e5m2fnuz",
-            "Float8_e8m0fnu",
-            "Float16",
-            "Float32",
-            "Float64",
-            "String",
-            "StringLiteral",
-            "IntLiteral",
-            "FloatLiteral",
-            "NoneType",
-            "Never",
-            "Tuple",
-        )
-    }
 
 }

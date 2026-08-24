@@ -5,6 +5,8 @@ import com.github.petrmakhnev.intellijmojo.lang.psi.MojoMemberExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoLiteralExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoNameIdentifier
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoAssignmentStatement
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoBinExpression
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoCallExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoComptimeStatement
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoDeclarationName
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoFunctionDeclaration
@@ -13,8 +15,10 @@ import com.github.petrmakhnev.intellijmojo.lang.psi.MojoReferenceExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoStructDeclaration
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoTypeParameterList
 import com.github.petrmakhnev.intellijmojo.lang.resolve.bindingIdentifiers
+import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import java.math.BigInteger
 
 class MojoTypeInferenceTest : BasePlatformTestCase() {
     fun testParameterCarriesDeclaredType() {
@@ -242,13 +246,65 @@ class MojoTypeInferenceTest : BasePlatformTestCase() {
         }
     }
 
+    fun testGenericFieldTypeIsSpecializedFromReceiver() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct Box[T]:
+                var value: T
+
+            def read(box: Box[Int]):
+                var result = box.value
+            """.trimIndent(),
+        )
+        val function = PsiTreeUtil.findChildrenOfType(file, MojoFunctionDeclaration::class.java)
+            .single { it.name == "read" }
+        val fieldRead = PsiTreeUtil.findChildOfType(function, MojoMemberExpression::class.java)!!
+        val result = PsiTreeUtil.findChildOfType(function, MojoAssignmentStatement::class.java)!!
+            .bindingIdentifiers()
+            .single()
+        val inference = function.selfInferenceResult
+
+        assertEquals("Int", fieldRead.inferredType?.displayName)
+        assertEquals("Int", inference.getType(result)?.displayName)
+    }
+
+    fun testConstructorAppliesDefaultGenericArguments() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct DefaultBox[T: AnyType = Int]:
+                var value: T
+
+                def __init__(out self):
+                    pass
+
+            def make():
+                var box = DefaultBox()
+                var value = box.value
+            """.trimIndent(),
+        )
+        val function = PsiTreeUtil.findChildrenOfType(file, MojoFunctionDeclaration::class.java)
+            .single { it.name == "make" }
+        val bindings = PsiTreeUtil.findChildrenOfType(function, MojoAssignmentStatement::class.java)
+            .associate { assignment ->
+                val identifier = assignment.bindingIdentifiers().single()
+                identifier.text to identifier
+            }
+        val inference = function.selfInferenceResult
+
+        assertEquals("DefaultBox[Int]", inference.getType(bindings.getValue("box"))?.displayName)
+        assertEquals("Int", inference.getType(bindings.getValue("value"))?.displayName)
+    }
+
     fun testComptimeBindingCanHoldAValueOrAType() {
         val file = myFixture.configureByText(
             MojoFileType,
             """
-            def render():
+            def render(source):
                 comptime BLOCK = "▇"
                 comptime Element = Int
+                comptime ExplicitType: AnyType = source
                 var value: Element = 1
                 print(BLOCK)
             """.trimIndent(),
@@ -261,12 +317,15 @@ class MojoTypeInferenceTest : BasePlatformTestCase() {
             .associateBy { it.name }
         val blockType = function.selfInferenceResult.getType(declarations.getValue("BLOCK"))
         val elementType = function.selfInferenceResult.getType(declarations.getValue("Element"))
+        val explicitType = function.selfInferenceResult.getType(declarations.getValue("ExplicitType"))
         val valueDeclaration = PsiTreeUtil.findChildOfType(file, MojoAssignmentStatement::class.java)!!
             .bindingIdentifiers()
             .single()
 
         assertEquals("StringLiteral", blockType?.displayName)
         assertEquals("type[Int]", elementType?.displayName)
+        assertTrue(explicitType is MojoTy.TypeValue)
+        assertTrue(declarations.getValue("ExplicitType").isTypeValuedComptime())
         assertEquals("Int", function.selfInferenceResult.getType(valueDeclaration)?.displayName)
         assertEquals("StringLiteral", reference(file, "BLOCK").inferredType?.displayName)
     }
@@ -318,6 +377,182 @@ class MojoTypeInferenceTest : BasePlatformTestCase() {
         }
         assertEquals("Bool", functionMembers.single { it.nameIdentifier.text == "forward" }.inferredType?.displayName)
         assertEquals("DType", functionMembers.single { it.nameIdentifier.text == "dtype" }.inferredType?.displayName)
+    }
+
+    fun testPartiallySpecializedComptimeAliasesPreserveValueArguments() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct DType:
+                comptime float32 = DType()
+                comptime uint64 = DType()
+
+            struct SIMD[dtype: DType, length: Int]:
+                def __init__[T](out self, value: T):
+                    pass
+
+            comptime Scalar = SIMD[
+                _, length=__mlir_attr[`#lit.struct<{_mlir_value = 1}> : `, SIMDLength]
+            ]
+            comptime Float32 = Scalar[DType.float32]
+            comptime UInt64 = Scalar[DType.uint64]
+
+            def scales(pi: Float32):
+                comptime SCALE = Float32(1.0) / Float32(UInt64(1) << 32)
+                comptime SCALE_2PI = SCALE * Float32(2.0) * Float32(pi)
+                comptime SCALE_HALF = SCALE * Float32(0.5)
+                comptime SCALE_2PI_HALF = SCALE_2PI * Float32(0.5)
+            """.trimIndent(),
+        )
+        val function = PsiTreeUtil.findChildrenOfType(file, MojoFunctionDeclaration::class.java)
+            .single { it.name == "scales" }
+        val inference = function.selfInferenceResult
+        val scales = PsiTreeUtil.findChildrenOfType(function, MojoComptimeStatement::class.java)
+            .associateBy { it.name }
+
+        fun assertScalar(type: MojoTy?, alias: String, dtype: String) {
+            assertEquals(alias, type?.displayName)
+            assertTrue(type is MojoTy.Struct)
+            val scalar = type as MojoTy.Struct
+            assertEquals("SIMD", scalar.declaration.name)
+            assertEquals(2, scalar.genericArguments.size)
+            assertEquals("DType.$dtype", (scalar.genericArguments[0] as MojoGenericArg.Value).displayName)
+            assertEquals("1", (scalar.genericArguments[1] as MojoGenericArg.Value).displayName)
+        }
+
+        listOf("SCALE", "SCALE_2PI", "SCALE_HALF", "SCALE_2PI_HALF").forEach { name ->
+            assertScalar(inference.getType(scales.getValue(name)), "Float32", "float32")
+        }
+        PsiTreeUtil.findChildrenOfType(function, MojoCallExpression::class.java)
+            .filter { it.expression.text == "Float32" }
+            .also { assertEquals(6, it.size) }
+            .forEach { call -> assertScalar(inference.getType(call), "Float32", "float32") }
+        val uint64Call = PsiTreeUtil.findChildrenOfType(function, MojoCallExpression::class.java)
+            .single { it.expression.text == "UInt64" }
+        assertScalar(inference.getType(uint64Call), "UInt64", "uint64")
+        PsiTreeUtil.findChildrenOfType(function, MojoBinExpression::class.java)
+            .filter { it.binaryOp.text == "*" || it.binaryOp.text == "/" }
+            .also { assertEquals(5, it.size) }
+            .forEach { binary -> assertScalar(inference.getType(binary), "Float32", "float32") }
+    }
+
+    fun testMemberReturnTypeEvaluatesDependentReceiverLength() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct DType:
+                comptime float32 = DType()
+
+            struct Vec[dtype: DType, length: Int]:
+                def join(self, other: Self) -> Vec[Self.dtype, 2 * Int(Self.length)]:
+                    return self
+
+                def half(self) -> Vec[Self.dtype, Self.length // 2]:
+                    return self
+
+            def combine(left: Vec[DType.float32, 4], right: Vec[DType.float32, 4]):
+                var joined = left.join(right)
+                var halved = left.half()
+            """.trimIndent(),
+        )
+        val function = PsiTreeUtil.findChildrenOfType(file, MojoFunctionDeclaration::class.java)
+            .single { it.name == "combine" }
+        val joinCall = PsiTreeUtil.findChildrenOfType(function, MojoCallExpression::class.java)
+            .single { it.text == "left.join(right)" }
+        val bindings = PsiTreeUtil.findChildrenOfType(function, MojoAssignmentStatement::class.java)
+            .associate { assignment ->
+                val identifier = assignment.bindingIdentifiers().single()
+                identifier.text to identifier
+            }
+        val inference = function.selfInferenceResult
+
+        assertEquals("Vec[DType.float32, 8]", inference.getType(joinCall)?.displayName)
+        assertEquals("Vec[DType.float32, 8]", inference.getType(bindings.getValue("joined"))?.displayName)
+        assertEquals("Vec[DType.float32, 2]", inference.getType(bindings.getValue("halved"))?.displayName)
+    }
+
+    fun testComptimeValuesNormalizeAndRebindTransitively() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            "struct Shape[M: Int, N: Int]:\n    pass\n",
+        )
+        val parameters = PsiTreeUtil.findChildrenOfType(file, MojoParameterDeclaration::class.java)
+            .associateBy { it.nameIdentifier!!.text }
+        val m = parameters.getValue("M")
+        val n = parameters.getValue("N")
+        val intType = MojoTy.Builtin("Int")
+        val expression = MojoComptimeValue.Binary(
+            MojoComptimeValue.Integer(BigInteger.TWO),
+            "*",
+            MojoComptimeValue.ParameterRef(n, "Self.N"),
+        )
+        val type = MojoTy.Builtin(
+            "Vec",
+            listOf(MojoGenericArg.Value(intType, expression.render(), comptimeValue = expression)),
+        )
+        val substitution: Map<PsiElement, MojoGenericArg> = mapOf(
+            n to MojoGenericArg.Value(
+                intType,
+                "M",
+                m,
+                MojoComptimeValue.ParameterRef(m, "M"),
+            ),
+            m to MojoGenericArg.Value(
+                intType,
+                "4",
+                comptimeValue = MojoComptimeValue.Integer(BigInteger.valueOf(4)),
+            ),
+        )
+
+        assertEquals("Vec[8]", type.substitute(substitution).displayName)
+        assertEquals(
+            MojoComptimeValue.Integer(BigInteger.valueOf(4)),
+            MojoComptimeValue.Binary(
+                MojoComptimeValue.Integer(BigInteger.TWO),
+                "*",
+                MojoComptimeValue.Integer(BigInteger.TWO),
+            ).normalized(),
+        )
+        assertEquals(
+            MojoComptimeValue.Integer(BigInteger.valueOf(-2)),
+            MojoComptimeValue.Binary(
+                MojoComptimeValue.Integer(BigInteger.valueOf(-3)),
+                "//",
+                MojoComptimeValue.Integer(BigInteger.TWO),
+            ).normalized(),
+        )
+        assertEquals(
+            MojoComptimeValue.Integer(BigInteger.ONE),
+            MojoComptimeValue.Binary(
+                MojoComptimeValue.Integer(BigInteger.valueOf(-3)),
+                "%",
+                MojoComptimeValue.Integer(BigInteger.TWO),
+            ).normalized(),
+        )
+
+        val directN = MojoGenericArg.Value(
+            intType,
+            "N",
+            n,
+            MojoComptimeValue.ParameterRef(n, "N"),
+        )
+        val qualifiedN = MojoGenericArg.Value(
+            intType,
+            "Self.N",
+            n,
+            MojoComptimeValue.ParameterRef(n, "Self.N"),
+        )
+        val directType = MojoTy.Builtin("Vec", listOf(directN))
+        val qualifiedType = MojoTy.Builtin("Vec", listOf(qualifiedN))
+        assertEquals(directN, qualifiedN)
+        assertEquals(directType, directType.join(qualifiedType))
+
+        val hugeShift = MojoComptimeValue.Binary(
+            MojoComptimeValue.Integer(BigInteger.ONE),
+            "<<",
+            MojoComptimeValue.Integer(BigInteger.valueOf(2_000_000_000)),
+        ).normalized()
+        assertInstanceOf(hugeShift, MojoComptimeValue.Binary::class.java)
     }
 
     private fun reference(file: com.intellij.psi.PsiFile, name: String): MojoReferenceExpression =

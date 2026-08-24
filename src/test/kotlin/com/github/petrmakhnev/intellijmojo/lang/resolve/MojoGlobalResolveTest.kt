@@ -125,6 +125,51 @@ class MojoGlobalResolveTest : BasePlatformTestCase() {
         assertEquals("models.mojo", resolved!!.containingFile.name)
     }
 
+    fun testResolvesSymbolsFromImplicitPreludeImport() {
+        myFixture.addFileToProject("std/__init__.mojo", "")
+        myFixture.addFileToProject("std/builtin/__init__.mojo", "")
+        myFixture.addFileToProject("std/builtin/simd.mojo", "struct Int:\n    pass\n")
+        myFixture.addFileToProject("std/prelude/__init__.mojo", "from std.builtin.simd import Int\n")
+        val file = myFixture.configureByText("main.mojo", "def load(value: Int):\n    pass\n")
+        val typeName = PsiTreeUtil.findChildrenOfType(file, MojoNameIdentifier::class.java)
+            .single { it.text == "Int" && it.references.isNotEmpty() }
+
+        val resolved = typeName.reference!!.resolve()
+
+        assertInstanceOf(resolved, MojoStructDeclaration::class.java)
+        assertEquals("simd.mojo", resolved!!.containingFile.name)
+    }
+
+    fun testImplicitlyBindsStdPackage() {
+        myFixture.addFileToProject("std/__init__.mojo", "")
+        myFixture.addFileToProject("std/prelude/__init__.mojo", "")
+        val file = myFixture.configureByText("main.mojo", "var module = std\n")
+
+        val resolved = expression(file, "std").reference!!.resolve()
+
+        assertNotNull(resolved)
+        assertEquals("std", resolved!!.containingFile.virtualFile.parent.name)
+    }
+
+    fun testExplicitWildcardImportWinsOverImplicitPrelude() {
+        myFixture.addFileToProject("std/__init__.mojo", "")
+        myFixture.addFileToProject("std/prelude/__init__.mojo", "struct Value:\n    pass\n")
+        myFixture.addFileToProject("custom.mojo", "struct Value:\n    pass\n")
+        val file = myFixture.configureByText("main.mojo", "from custom import *\nvar value = Value()\n")
+
+        val resolved = expression(file, "Value").reference!!.resolve()
+
+        assertEquals("custom.mojo", resolved!!.containingFile.name)
+    }
+
+    fun testImplicitPreludeDoesNotExposePrivateNames() {
+        myFixture.addFileToProject("std/__init__.mojo", "")
+        myFixture.addFileToProject("std/prelude/__init__.mojo", "def _private():\n    pass\n")
+        val file = myFixture.configureByText("main.mojo", "_private()\n")
+
+        assertNull(expression(file, "_private").reference!!.resolve())
+    }
+
     fun testImportedOverloadsProduceMultipleResolveResults() {
         myFixture.addFileToProject(
             "overloads.mojo",

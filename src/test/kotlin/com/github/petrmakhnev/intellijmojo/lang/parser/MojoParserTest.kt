@@ -7,6 +7,8 @@ import com.github.petrmakhnev.intellijmojo.lang.psi.MojoExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoFile
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoFunctionDeclaration
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoLiteralExpression
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoMlirAttribute
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoMlirTypeValue
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoReferenceExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoStructDeclaration
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoSubscriptExpression
@@ -510,6 +512,31 @@ class MojoParserTest : BasePlatformTestCase() {
         PsiDocumentManager.getInstance(project).commitDocument(myFixture.editor.document)
 
         assertNoParserErrors(file)
+    }
+
+    fun testMlirKeywordCanBeAFunctionName() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct DType:
+                @always_inline("nodebug")
+                def __mlir_type(self) -> __mlir_type.`!kgen.deferred`:
+                    if self == DType.bool:
+                        return __mlir_attr.i1
+                    abort("invalid dtype")
+
+            struct Atomic:
+                def __mlir_attr(self) -> __mlir_type.`!kgen.deferred`:
+                    return __mlir_attr.i64
+            """.trimIndent(),
+        )
+
+        assertNoParserErrors(file)
+        val names = PsiTreeUtil.findChildrenOfType(file, MojoFunctionDeclaration::class.java)
+            .mapNotNull { it.name }
+        assertEquals(listOf("__mlir_type", "__mlir_attr"), names)
+        assertSize(2, PsiTreeUtil.findChildrenOfType(file, MojoMlirTypeValue::class.java))
+        assertSize(2, PsiTreeUtil.findChildrenOfType(file, MojoMlirAttribute::class.java))
     }
 
     private fun assertNoParserErrors(file: com.intellij.psi.PsiFile) {

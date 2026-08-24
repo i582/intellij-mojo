@@ -1,5 +1,6 @@
 package com.github.petrmakhnev.intellijmojo.lang.resolve
 
+import com.github.petrmakhnev.intellijmojo.ide.settings.mojoSettings
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoDottedName
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoFile
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoModuleImportStatement
@@ -110,9 +111,11 @@ internal object MojoModuleResolver {
             return resolveFromDirectory(place.project, anchor, components)
         }
 
-        val direct = importRoots(place).flatMap { resolveFromDirectory(place.project, it, components) }
-            .distinctBy(::elementPath)
-        if (direct.isNotEmpty()) return direct
+        for (root in importRoots(place)) {
+            val direct = resolveFromDirectory(place.project, root, components)
+                .distinctBy(::elementPath)
+            if (direct.isNotEmpty()) return direct
+        }
 
         return findIndexedModules(place, components)
     }
@@ -206,6 +209,7 @@ internal object MojoModuleResolver {
     }
 
     private fun importRoots(place: PsiElement): List<VirtualFile> = buildList {
+        addAll(place.project.mojoSettings.importRoots())
         val rootManager = ProjectRootManager.getInstance(place.project)
         addAll(rootManager.contentSourceRoots)
         addAll(rootManager.contentRoots)

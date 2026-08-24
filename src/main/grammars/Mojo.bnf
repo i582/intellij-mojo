@@ -498,11 +498,11 @@ private NamedSliceExpression ::= NameIdentifier '=' SliceExpression
 SliceExpression ::= Expression? ':' Expression? (':' Expression?)?
 
 private AtomicExpression ::= LiteralExpression
-               | ReferenceExpression
-               | UnderscoreExpression
                | MlirAttribute
                | MlirTypeValue
                | MlirOpExpression
+               | ReferenceExpression
+               | UnderscoreExpression
                | ParenthesizedExpression
                | ListExpression
                | BraceExpression
@@ -552,7 +552,7 @@ private TypePrimary ::= LiteralExpression | NameIdentifier | '_' | MlirAttribute
                        | ParenthesizedExpression | ListExpression | BraceExpression
 private TypePostfixSuffix ::= ArgumentList | SubscriptSuffix | MemberSuffix | TransferSuffix
 
-NameIdentifier ::= IDENTIFIER | ESCAPED_IDENTIFIER | 'match'
+NameIdentifier ::= IDENTIFIER | ESCAPED_IDENTIFIER | 'match' | '__mlir_attr' | '__mlir_type'
                   | 'case'
                   | 'alias' | 'deinit' | 'out' | 'imm' | 'mut' | 'raises'
                   | 'read' | 'owned' | 'thin' | 'abi' | 'capturing' | 'escaping'

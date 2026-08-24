@@ -6,10 +6,12 @@ import com.github.petrmakhnev.intellijmojo.lang.psi.MojoDottedName
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoLiteralExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoMemberExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoNameIdentifier
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoNamedParameter
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoParameterDeclaration
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoReferenceExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoTypeExpression
 import com.github.petrmakhnev.intellijmojo.lang.resolve.MojoGlobalReferences
+import com.github.petrmakhnev.intellijmojo.lang.resolve.MojoNamedArgumentReferences
 import com.github.petrmakhnev.intellijmojo.lang.type.mojoInference
 import com.intellij.extapi.psi.ASTWrapperPsiElement
 import com.intellij.lang.ASTNode
@@ -48,6 +50,7 @@ abstract class MojoNameIdentifierMixin(node: ASTNode) :
     MojoNameIdentifier,
     PsiNamedElement {
     override fun getReferences(): Array<PsiReference> = when {
+        parent is MojoNamedParameter -> MojoNamedArgumentReferences.forName(this)
         isTypeReference() -> MojoGlobalReferences.forTypeName(this)
         mojoInference?.getResolvedRefs(this)?.any { it != this } == true -> MojoGlobalReferences.forIdentifier(this)
         else -> PsiReference.EMPTY_ARRAY

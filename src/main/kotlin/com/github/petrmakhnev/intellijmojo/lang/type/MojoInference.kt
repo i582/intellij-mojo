@@ -18,7 +18,6 @@ import com.intellij.psi.PsiManager
 import com.intellij.psi.util.CachedValue
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
-import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.PsiTreeUtil
 import java.util.LinkedHashMap
 
@@ -53,14 +52,14 @@ private val INFERENCE_KEY: Key<CachedValue<MojoInferenceResult>> = Key.create("M
 
 private val PsiElement.ownInferenceResult: MojoInferenceResult
     get() = CachedValuesManager.getCachedValue(this, INFERENCE_KEY) {
-        val result = RecursionManager.doPreventingRecursion(this, true) {
+        val result = RecursionManager.doPreventingRecursion(this, false) {
             when (this) {
                 is MojoFunctionDeclaration -> MojoInferenceContext(this).infer()
                 is MojoMlirRegionDeclaration -> inferMlirRegion()
                 else -> MojoInferenceResult.Empty
             }
         } ?: MojoInferenceResult.Empty
-        CachedValueProvider.Result.create(result, PsiModificationTracker.MODIFICATION_COUNT)
+        CachedValueProvider.Result.create(result, *mojoInferenceCacheDependencies())
     }
 
 val MojoFunctionDeclaration.selfInferenceResult: MojoInferenceResult
@@ -103,6 +102,7 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
     private val resolvedReferences = LinkedHashMap<PsiElement, List<PsiElement>>()
     private val values = LinkedHashMap<PsiElement, MojoValue>()
     private val resolvedCalls = LinkedHashMap<MojoCallExpression, List<MojoFunctionDeclaration>>()
+    private val functionTypes = LinkedHashMap<MojoFunctionDeclaration, MojoTy.Function>()
     private lateinit var localDeclarations: Set<PsiElement>
     private lateinit var nestedEnvironments: Map<PsiElement, Map<String, PsiElement>>
     private lateinit var flow: MojoFlowContext
@@ -274,7 +274,7 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
 
     private fun inferForStatement(statement: MojoForStatement, currentFlow: MojoFlowContext): MojoFlowContext {
         val iterable = inferExpressionSequence(statement.expressionSequence, currentFlow)
-        val itemType = iterableItemType(iterable.type)
+        val itemType = iterableItemType(iterable.type, currentFlow)
         val bodyFlow = currentFlow.copy()
         statement.patternList?.bindingIdentifiers().orEmpty().forEach { identifier ->
             setValue(identifier, MojoValue(itemType, MojoValueCategory.MUTABLE_LVALUE), bodyFlow)
@@ -288,10 +288,20 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
         return currentFlow.join(bodyFlow).join(elseFlow)
     }
 
-    private fun iterableItemType(type: MojoTy): MojoTy = when (type) {
-        is MojoTy.Builtin -> type.arguments.firstOrNull() ?: MojoTy.Unknown
-        is MojoTy.Tuple -> type.elements.reduceOrNull(MojoTy::join) ?: MojoTy.Unknown
-        else -> MojoTy.Unknown
+    private fun iterableItemType(type: MojoTy, currentFlow: MojoFlowContext): MojoTy {
+        when (type) {
+            is MojoTy.Builtin -> return type.arguments.firstOrNull() ?: MojoTy.Unknown
+            is MojoTy.Tuple -> return type.elements.reduceOrNull(MojoTy::join) ?: MojoTy.Unknown
+            else -> Unit
+        }
+
+        val owners = type.declarationOwners()
+        if (owners.isEmpty()) return MojoTy.Unknown
+        val elementTargets = MojoGlobalSymbolResolver.resolveTypeMember(owners, "Element")
+        if (elementTargets.isEmpty()) return MojoTy.Unknown
+        val elementType = valueOfTargets(elementTargets, currentFlow).type
+        val representedType = (elementType as? MojoTy.TypeValue)?.instanceType ?: elementType
+        return representedType.substitute(type.genericParameterSubstitution())
     }
 
     private fun inferIfStatement(statement: MojoIfStatement, currentFlow: MojoFlowContext): MojoFlowContext {
@@ -440,7 +450,8 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
             expression.hasToken(MojoTypes.FLOAT_LITERAL) -> MojoTy.Builtin("FloatLiteral")
             expression.hasToken(MojoTypes.TRUE) || expression.hasToken(MojoTypes.FALSE) -> MojoTy.Builtin("Bool")
             expression.hasToken(MojoTypes.NONE) -> MojoTy.None
-            expression.hasToken(MojoTypes.SELF) -> enclosingType(owner)?.let { MojoTy.TypeValue(it) } ?: MojoTy.Unknown
+            expression.hasToken(MojoTypes.SELF) ->
+                enclosingType(expression)?.let { MojoTy.TypeValue(it) } ?: MojoTy.Unknown
             else -> MojoTy.Unknown
         }
         return MojoValue(type, if (type is MojoTy.TypeValue) MojoValueCategory.TYPE else MojoValueCategory.RVALUE)
@@ -457,7 +468,7 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
             resolvedReferences[expression] = navigationTargets
             return valueOfTargets(rawTargets, currentFlow)
         }
-        if (name in BUILTIN_TYPES) {
+        if (name in MOJO_BUILTIN_TYPE_NAMES) {
             return MojoValue(MojoTy.TypeValue(MojoTy.Builtin(name)), MojoValueCategory.TYPE)
         }
         return MojoValue.Unknown
@@ -472,12 +483,17 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
         if (rawTargets.isEmpty()) return MojoValue.Unknown
         resolvedReferences[expression] = MojoGlobalSymbolResolver.resolveCallAware(expression, rawTargets)
         val value = valueOfTargets(rawTargets, currentFlow)
+        val substitution = receiver.type.genericParameterSubstitution()
         return when (val type = value.type) {
-            is MojoTy.Function -> value.copy(type = type.withoutReceiver())
-            is MojoTy.Overload -> value.copy(
-                type = MojoTy.Overload(type.candidates.map(MojoTy.Function::withoutReceiver)),
+            is MojoTy.Function -> value.copy(
+                type = (type.substitute(substitution) as MojoTy.Function).withoutReceiver(),
             )
-            else -> value
+            is MojoTy.Overload -> value.copy(
+                type = MojoTy.Overload(type.candidates.map {
+                    (it.substitute(substitution) as MojoTy.Function).withoutReceiver()
+                }),
+            )
+            else -> value.copy(type = type.substitute(substitution))
         }
     }
 
@@ -495,22 +511,77 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
         }
 
         if (candidates.isNotEmpty()) {
-            val matches = candidates.mapNotNull { matchCall(it, arguments, currentFlow, hint) }
+            val argumentTypes = inferArgumentTypesForOverload(candidates, arguments, currentFlow)
+            val matches = candidates.mapNotNull { matchCall(it, arguments, currentFlow, hint, argumentTypes) }
             val bestScore = matches.minOfOrNull { it.score }
             val best = matches.filter { it.score == bestScore }
-            val selected = best.mapNotNull { it.function.declaration }
-            if (selected.isNotEmpty()) resolvedCalls[expression] = selected
+            resolveNamedCallArguments(
+                best.map { it.function }.takeIf { it.isNotEmpty() } ?: candidates,
+                arguments,
+            )
+            val selected = best.mapNotNull { it.function.declaration }.distinct()
+            recordResolvedCall(expression, selected)
             val returnType = best.map { it.returnType }.reduceOrNull(MojoTy::join) ?: MojoTy.Unknown
             return MojoValue(returnType)
         }
 
         if (callee.type is MojoTy.TypeValue) {
-            arguments.forEach { argumentExpression(it)?.let { value -> inferExpression(value, currentFlow) } }
-            return MojoValue(callee.type.instanceType)
+            val instanceType = applyGenericArguments(callee.type.instanceType, emptyList(), currentFlow)
+            val specializedCallee = MojoTy.TypeValue(instanceType)
+            val constructors = constructorCandidates(specializedCallee)
+            if (constructors.isNotEmpty()) {
+                val argumentTypes = inferArgumentTypesForOverload(constructors, arguments, currentFlow)
+                val matches = constructors.mapNotNull { matchCall(it, arguments, currentFlow, hint, argumentTypes) }
+                val bestScore = matches.minOfOrNull { it.score }
+                val best = matches.filter { it.score == bestScore }
+                resolveNamedCallArguments(
+                    best.map { it.function }.takeIf { it.isNotEmpty() } ?: constructors,
+                    arguments,
+                )
+                val selected = best.mapNotNull { it.function.declaration }.distinct()
+                recordResolvedCall(expression, selected)
+                if (matches.isEmpty()) {
+                    arguments.forEach { argumentExpression(it)?.let { value -> inferExpression(value, currentFlow) } }
+                }
+            } else {
+                arguments.forEach { argumentExpression(it)?.let { value -> inferExpression(value, currentFlow) } }
+            }
+            return MojoValue(instanceType)
         }
 
         arguments.forEach { argumentExpression(it)?.let { value -> inferExpression(value, currentFlow) } }
         return MojoValue.Unknown
+    }
+
+    private fun inferArgumentTypesForOverload(
+        candidates: List<MojoTy.Function>,
+        arguments: List<MojoArgument>,
+        currentFlow: MojoFlowContext,
+    ): Map<MojoArgument, MojoTy> {
+        if (candidates.size <= 1) return emptyMap()
+        return arguments.associateWith { argument ->
+            argumentExpression(argument)?.let { inferExpression(it, currentFlow).type } ?: MojoTy.Unknown
+        }
+    }
+
+    private fun recordResolvedCall(
+        expression: MojoCallExpression,
+        selected: List<MojoFunctionDeclaration>,
+    ) {
+        if (selected.isEmpty()) return
+        resolvedCalls[expression] = selected
+
+        var target: MojoExpression = expression.expression
+        while (true) {
+            target = when (target) {
+                is MojoSubscriptExpression -> target.expression
+                is MojoTransferExpression -> target.expression
+                else -> break
+            }
+        }
+        if (target is MojoReferenceExpression || target is MojoMemberExpression) {
+            resolvedReferences[target] = selected
+        }
     }
 
     private fun matchCall(
@@ -518,12 +589,13 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
         arguments: List<MojoArgument>,
         currentFlow: MojoFlowContext,
         hint: MojoTy?,
+        precomputedArgumentTypes: Map<MojoArgument, MojoTy>,
     ): CallMatch? {
         val required = function.parameters.count { !it.hasDefault && !it.variadic }
         val variadic = function.parameters.any { it.variadic }
         if (arguments.size < required || (!variadic && arguments.size > function.parameters.size)) return null
 
-        val substitution = LinkedHashMap<PsiElement, MojoTy>()
+        val substitution = LinkedHashMap<PsiElement, MojoGenericArg>()
         if (hint != null) substitution.deduce(function.returnType, hint)
         var score = 0
         var positionalIndex = 0
@@ -536,7 +608,7 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
             } ?: return null
             val expected = parameter.type.substitute(substitution)
             val argumentExpression = argumentExpression(argument) ?: continue
-            val actual = inferExpression(
+            val actual = precomputedArgumentTypes[argument] ?: inferExpression(
                 argumentExpression,
                 currentFlow,
                 expected.takeUnless { it is MojoTy.TypeParameter },
@@ -545,27 +617,67 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
             val specializedExpected = parameter.type.substitute(substitution)
             val compatibility = compatibilityScore(specializedExpected, actual)
             if (compatibility == INCOMPATIBLE) return null
-            score += compatibility
+            score += compatibility + genericMatchPenalty(parameter.type)
         }
         return CallMatch(function, function.returnType.substitute(substitution), score)
     }
 
     private fun inferSubscript(expression: MojoSubscriptExpression, currentFlow: MojoFlowContext): MojoValue {
         val base = inferExpression(expression.expression, currentFlow)
-        val arguments = expression.subscriptItemList.map { item ->
-            item.typeExpression?.let { resolveType(it, owner) }
-                ?: item.expression?.let { argument ->
-                    val value = inferExpression(argument, currentFlow)
-                    (value.type as? MojoTy.TypeValue)?.instanceType ?: value.type
-                }
-                ?: MojoTy.Unknown
-        }
+        resolveNamedTypeArguments(typeParameters(base.type), expression.subscriptItemList)
+        val arguments = expression.subscriptItemList.map { genericArgument(it, currentFlow, owner) }
         val type = when (val baseType = base.type) {
-            is MojoTy.TypeValue -> MojoTy.TypeValue(baseType.instanceType.withArguments(arguments))
+            is MojoTy.TypeValue -> MojoTy.TypeValue(
+                applyGenericArguments(baseType.instanceType, arguments, currentFlow),
+            )
             is MojoTy.Builtin -> baseType.arguments.firstOrNull() ?: MojoTy.Unknown
             else -> baseType
         }
         return MojoValue(type, if (type is MojoTy.TypeValue) MojoValueCategory.TYPE else MojoValueCategory.RVALUE)
+    }
+
+    private fun resolveNamedCallArguments(
+        functions: List<MojoTy.Function>,
+        arguments: List<MojoArgument>,
+    ) {
+        arguments.mapNotNull(MojoArgument::getNamedParameter).forEach { argument ->
+            val name = argument.nameIdentifier.identifierText()
+            val targets = functions.flatMap { function ->
+                function.parameters
+                    .filter { it.name == name }
+                    .map { it.declaration.parameterReferenceTarget() }
+            }.distinct()
+            if (targets.isNotEmpty()) resolvedReferences[argument.nameIdentifier] = targets
+        }
+    }
+
+    private fun resolveNamedTypeArguments(
+        parameters: List<PsiElement>,
+        arguments: List<MojoSubscriptItem>,
+    ) {
+        arguments.mapNotNull(MojoSubscriptItem::getNamedParameter).forEach { argument ->
+            val name = argument.nameIdentifier.identifierText()
+            val targets = parameters
+                .filter { it.parameterName() == name }
+                .map { it.parameterReferenceTarget() }
+                .distinct()
+            if (targets.isNotEmpty()) resolvedReferences[argument.nameIdentifier] = targets
+        }
+    }
+
+    private fun typeParameters(type: MojoTy): List<PsiElement> = when (type) {
+        is MojoTy.Function -> type.typeParameters
+        is MojoTy.Overload -> type.candidates.flatMap { it.typeParameters }.distinct()
+        is MojoTy.TypeValue -> genericParameters(type.instanceType)
+        else -> emptyList()
+    }
+
+    private fun constructorCandidates(type: MojoTy.TypeValue): List<MojoTy.Function> {
+        val declaration = (type.instanceType as? MojoTy.Struct)?.declaration ?: return emptyList()
+        val substitution = type.instanceType.genericParameterSubstitution()
+        return MojoGlobalSymbolResolver.resolveTypeMember(listOf(declaration), "__init__")
+            .filterIsInstance<MojoFunctionDeclaration>()
+            .map { (functionType(it).substitute(substitution) as MojoTy.Function).withoutReceiver() }
     }
 
     private fun inferExpressionList(
@@ -593,7 +705,7 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
             .reduceOrNull(MojoTy::join)
             ?: expectedElement
             ?: MojoTy.Unknown
-        return MojoValue(MojoTy.Builtin("List", listOf(elementType)))
+        return MojoValue(MojoTy.Builtin("List", listOf(MojoGenericArg.Type(elementType))))
     }
 
     private fun inferBrace(expression: MojoBraceExpression, currentFlow: MojoFlowContext): MojoValue {
@@ -602,7 +714,7 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
         return if (types.isEmpty()) {
             MojoValue(MojoTy.Unknown)
         } else {
-            MojoValue(MojoTy.Builtin("Dict", types.take(2)))
+            MojoValue(MojoTy.Builtin("Dict", types.take(2).map(MojoGenericArg::Type)))
         }
     }
 
@@ -621,7 +733,7 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
                         .map { inferExpression(it, comprehensionFlow) }
                         .lastOrNull()
                         ?: MojoValue.Unknown
-                    val itemType = iterableItemType(iterable.type)
+                    val itemType = iterableItemType(iterable.type, comprehensionFlow)
                     clause.patternList?.bindingIdentifiers().orEmpty().forEach { identifier ->
                         setValue(identifier, MojoValue(itemType, MojoValueCategory.IMMUTABLE_LVALUE), comprehensionFlow)
                     }
@@ -649,7 +761,7 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
         val type = if (operator in COMPARISON_OPERATORS || operator == "and" || operator == "or") {
             MojoTy.Builtin("Bool")
         } else {
-            left.type.join(right.type)
+            binaryResultType(left.type, right.type)
         }
         return MojoValue(type)
     }
@@ -716,16 +828,18 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
     private fun valueOfTarget(target: PsiElement, currentFlow: MojoFlowContext): MojoValue? {
         currentFlow[target]?.let { return it }
         values[target]?.let { return it }
+        // A function's callable type is completely described by its signature. Asking the
+        // function for its own inference result here walks its body and can recursively pull
+        // in every body reachable from a perfectly ordinary call-site lookup.
+        if (target is MojoFunctionDeclaration) {
+            return MojoValue(functionType(target), MojoValueCategory.IMMUTABLE_LVALUE)
+        }
         val externalOwner = PsiTreeUtil.getParentOfType(target, MojoFunctionDeclaration::class.java, false)
         if (externalOwner != null && externalOwner != owner) {
             externalOwner.selfInferenceResult.getValue(target)?.let { return it }
         }
         return when (target) {
-            is MojoParameterDeclaration -> MojoValue(
-                target.typeExpression?.let { resolveType(it, externalOwner ?: owner) } ?: MojoTy.Unknown,
-                MojoValueCategory.PARAMETER,
-            )
-            is MojoFunctionDeclaration -> MojoValue(functionType(target), MojoValueCategory.IMMUTABLE_LVALUE)
+            is MojoParameterDeclaration -> parameterValue(target, externalOwner ?: owner)
             is MojoStructDeclaration -> MojoValue(MojoTy.TypeValue(MojoTy.Struct(target)), MojoValueCategory.TYPE)
             is MojoTraitDeclaration -> MojoValue(MojoTy.TypeValue(MojoTy.Trait(target)), MojoValueCategory.TYPE)
             is MojoComptimeStatement -> valueOfComptime(target, currentFlow)
@@ -739,9 +853,23 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
         return comptimeValue(target, currentFlow)
     }
 
+    private fun parameterValue(
+        parameter: MojoParameterDeclaration,
+        function: MojoFunctionDeclaration,
+    ): MojoValue {
+        val declaredType = parameter.typeExpression?.let { resolveType(it, function) }
+        val isTypeParameter = parameter.parent is MojoTypeParameterList
+        return if (isTypeParameter && (declaredType == null || declaredType.isTypeConstraint())) {
+            MojoValue(MojoTy.TypeValue(MojoTy.TypeParameter(parameter)), MojoValueCategory.TYPE)
+        } else {
+            MojoValue(declaredType ?: MojoTy.Unknown, MojoValueCategory.PARAMETER)
+        }
+    }
+
     private fun comptimeValue(statement: MojoComptimeStatement, currentFlow: MojoFlowContext): MojoValue {
+        val declaredType = statement.declaredTypeExpression()?.let { resolveType(it, owner) }
+        val initializer = statement.expression?.let { inferExpression(it, currentFlow) }
         val inferred = when {
-            statement.expression != null -> inferExpression(statement.expression!!, currentFlow)
             statement.functionType != null -> MojoValue(
                 MojoTy.TypeValue(functionType(statement.functionType!!, owner)),
                 MojoValueCategory.TYPE,
@@ -754,14 +882,16 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
                 MojoTy.TypeValue(MojoTy.TypeParameter(statement)),
                 MojoValueCategory.TYPE,
             )
+            declaredType?.isTypeConstraint() == true -> initializer
+                ?.takeIf { it.type is MojoTy.TypeValue }
+                ?: MojoValue(
+                    MojoTy.TypeValue(MojoTy.TypeParameter(statement)),
+                    MojoValueCategory.TYPE,
+                )
+            initializer != null -> initializer
             else -> {
-                val declaredType = statement.declaredTypeExpression()?.let { resolveType(it, owner) }
                 when {
                     declaredType == null -> MojoValue.Unknown
-                    declaredType.isTypeConstraint() -> MojoValue(
-                        MojoTy.TypeValue(MojoTy.TypeParameter(statement)),
-                        MojoValueCategory.TYPE,
-                    )
                     else -> MojoValue(declaredType, MojoValueCategory.PARAMETER)
                 }
             }
@@ -787,7 +917,10 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
         currentFlow[target] = value
     }
 
-    private fun functionType(function: MojoFunctionDeclaration): MojoTy.Function {
+    private fun functionType(function: MojoFunctionDeclaration): MojoTy.Function =
+        functionTypes[function] ?: buildFunctionType(function).also { functionTypes[function] = it }
+
+    private fun buildFunctionType(function: MojoFunctionDeclaration): MojoTy.Function {
         val signature = function.functionSignature
         val typeParameters = signature.typeParameterList?.parameterDeclarationList.orEmpty()
             .filter { it.nameIdentifier != null }
@@ -822,6 +955,7 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
 
     private fun resolveTypeComposition(composition: MojoTypeComposition, function: MojoFunctionDeclaration): MojoTy {
         composition.functionTypeList.firstOrNull()?.let { return functionType(it, function) }
+        resolveTypeOf(composition, function)?.let { return it }
         val selfType = PsiTreeUtil.getChildOfType(composition, MojoLiteralExpression::class.java)
             ?.hasToken(MojoTypes.SELF) == true
         if (selfType) {
@@ -838,15 +972,232 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
         }
         val nameIdentifier = composition.nameIdentifierList.firstOrNull()
         val base = nameIdentifier?.let { resolveTypeName(it, function) } ?: MojoTy.Unknown
-        val arguments = composition.subscriptItemList.map { item ->
-            item.typeExpression?.let { resolveType(it, function) }
-                ?: item.expression?.let { expression ->
-                    val value = inferExpression(expression, flow)
-                    (value.type as? MojoTy.TypeValue)?.instanceType ?: value.type
+        val arguments = composition.subscriptItemList.map { genericArgument(it, flow, function) }
+        return applyGenericArguments(base, arguments, flow)
+    }
+
+    private fun resolveTypeOf(
+        composition: MojoTypeComposition,
+        function: MojoFunctionDeclaration,
+    ): MojoTy? {
+        if (composition.nameIdentifierList.firstOrNull()?.identifierText() != "type_of") return null
+        val argument = composition.argumentListList.firstOrNull()
+            ?.argumentList
+            ?.firstOrNull()
+            ?.let(::argumentExpression) as? MojoReferenceExpression
+            ?: return MojoTy.Unknown
+        val name = argument.nameIdentifier.identifierText()
+        val parameter = function.functionSignature.callableParameters
+            ?.parameterDeclarationList
+            .orEmpty()
+            .firstOrNull { it.nameIdentifier?.identifierText() == name }
+            ?: return MojoTy.Unknown
+        resolvedReferences[argument] = listOfNotNull(parameter.nameIdentifier)
+        return parameter.typeExpression?.let { resolveType(it, function) } ?: implicitSelfType(parameter) ?: MojoTy.Unknown
+    }
+
+    private fun genericArgument(
+        item: MojoSubscriptItem,
+        currentFlow: MojoFlowContext,
+        function: MojoFunctionDeclaration,
+    ): SuppliedGenericArgument {
+        val named = item.namedParameter
+        val name = named?.nameIdentifier?.identifierText()
+        val typeExpression = named?.typeExpression ?: item.typeExpression
+        if (typeExpression != null) {
+            val parameterIdentifier = typeExpression.typeUnion
+                ?.typeCompositionList
+                ?.singleOrNull()
+                ?.takeIf { composition ->
+                    composition.argumentListList.isEmpty() && composition.subscriptItemList.isEmpty()
                 }
-                ?: MojoTy.Unknown
+                ?.nameIdentifierList
+                ?.singleOrNull()
+            if (parameterIdentifier != null) {
+                genericParameterArgument(parameterIdentifier, parameterIdentifier, function)?.let {
+                    return SuppliedGenericArgument(name, it)
+                }
+            }
+            return SuppliedGenericArgument(name, MojoGenericArg.Type(resolveType(typeExpression, function)))
         }
-        return base.withArguments(arguments)
+        val expression = named?.expression ?: item.expression
+        return SuppliedGenericArgument(
+            name,
+            expression?.let { genericArgument(it, currentFlow, function) } ?: MojoGenericArg.Unknown,
+        )
+    }
+
+    private fun genericArgument(
+        expression: MojoExpression,
+        currentFlow: MojoFlowContext,
+        function: MojoFunctionDeclaration = owner,
+    ): MojoGenericArg {
+        if (expression is MojoUnderscoreExpression) return MojoGenericArg.Hole()
+        if (expression is MojoReferenceExpression) {
+            genericParameterArgument(expression.nameIdentifier, expression, function)?.let { return it }
+        }
+        val value = inferExpression(expression, currentFlow)
+        val representedType = (value.type as? MojoTy.TypeValue)?.instanceType
+        if (representedType != null) return MojoGenericArg.Type(representedType)
+
+        val declaration = resolvedReferences[expression]
+            ?.firstOrNull()
+            ?.genericArgumentDeclaration()
+        val comptimeValue = comptimeValueExpression(expression)?.normalized()
+        return MojoGenericArg.Value(
+            type = value.type,
+            displayName = comptimeValue?.render() ?: expression.text,
+            declaration = declaration,
+            comptimeValue = comptimeValue,
+        )
+    }
+
+    private fun comptimeValueExpression(expression: MojoExpression): MojoComptimeValue? {
+        mlirIntegerValue(expression.text)?.let { return it }
+        return when (expression) {
+            is MojoLiteralExpression -> when {
+                expression.hasToken(MojoTypes.INTEGER_LITERAL) -> parseComptimeInteger(expression.text)
+                else -> MojoComptimeValue.Opaque(expression.text)
+            }
+            is MojoReferenceExpression -> comptimeParameterReference(expression, expression.text)
+                ?: MojoComptimeValue.Opaque(expression.text)
+            is MojoMemberExpression -> comptimeParameterReference(expression, expression.text)
+                ?: MojoComptimeValue.Opaque(expression.text)
+            is MojoBinExpression -> {
+                val operands = expression.expressionList
+                val left = operands.getOrNull(0)?.let(::comptimeValueExpression)
+                val right = operands.getOrNull(1)?.let(::comptimeValueExpression)
+                if (left != null && right != null) {
+                    MojoComptimeValue.Binary(left, expression.binaryOp.text, right)
+                } else {
+                    MojoComptimeValue.Opaque(expression.text)
+                }
+            }
+            is MojoPrefixExpression -> {
+                val operand = expression.expression
+                val value = operand?.let(::comptimeValueExpression)
+                val operator = operand?.let {
+                    expression.text.substring(0, it.textOffset - expression.textOffset).trim()
+                }
+                if (value != null && operator in COMPTIME_UNARY_OPERATORS) {
+                    MojoComptimeValue.Unary(operator!!, value)
+                } else {
+                    MojoComptimeValue.Opaque(expression.text)
+                }
+            }
+            is MojoCallExpression -> {
+                val name = (expression.expression as? MojoReferenceExpression)?.nameIdentifier?.identifierText()
+                val argument = expression.argumentList.argumentList.singleOrNull()?.let(::argumentExpression)
+                val value = argument?.let(::comptimeValueExpression)
+                if (name in MOJO_COMPTIME_INTEGER_CONVERSIONS && value != null) {
+                    MojoComptimeValue.Conversion(name!!, value)
+                } else {
+                    MojoComptimeValue.Opaque(expression.text)
+                }
+            }
+            is MojoParenthesizedExpression -> expression.expressionList.singleOrNull()?.let(::comptimeValueExpression)
+                ?: MojoComptimeValue.Opaque(expression.text)
+            else -> MojoComptimeValue.Opaque(expression.text)
+        }
+    }
+
+    private fun comptimeParameterReference(
+        expression: MojoExpression,
+        sourceName: String,
+    ): MojoComptimeValue.ParameterRef? {
+        val declaration = resolvedReferences[expression]
+            .orEmpty()
+            .firstNotNullOfOrNull { target ->
+                when (target) {
+                    is MojoParameterDeclaration -> target
+                    is MojoNameIdentifier -> target.parent as? MojoParameterDeclaration
+                    else -> null
+                }
+            }
+            ?: return null
+        if (declaration.parent !is MojoTypeParameterList) return null
+        return MojoComptimeValue.ParameterRef(declaration, sourceName)
+    }
+
+    private fun genericParameterArgument(
+        nameIdentifier: MojoNameIdentifier,
+        referenceElement: PsiElement,
+        function: MojoFunctionDeclaration,
+    ): MojoGenericArg? {
+        val name = nameIdentifier.identifierText()
+        val parameter = function.functionSignature.typeParameterList
+            ?.parameterDeclarationList
+            .orEmpty()
+            .firstOrNull { it.nameIdentifier?.identifierText() == name }
+            ?: (nameIdentifier.lexicalTypeParameter(name)?.parent as? MojoParameterDeclaration)
+            ?: return null
+        val target = parameter.nameIdentifier ?: parameter
+        resolvedReferences[referenceElement] = listOf(target)
+        val declaredType = parameter.typeExpression?.let { resolveType(it, function) }
+        return if (declaredType == null || declaredType.isTypeConstraint()) {
+            MojoGenericArg.Type(MojoTy.TypeParameter(parameter))
+        } else {
+            MojoGenericArg.Value(
+                type = declaredType,
+                displayName = name,
+                declaration = parameter,
+                comptimeValue = MojoComptimeValue.ParameterRef(parameter, name),
+            )
+        }
+    }
+
+    private fun mlirIntegerValue(text: String): MojoComptimeValue.Integer? =
+        MLIR_INTEGER_VALUE.find(text)?.groupValues?.getOrNull(1)?.let(::parseComptimeInteger)
+
+    private fun applyGenericArguments(
+        base: MojoTy,
+        supplied: List<SuppliedGenericArgument>,
+        currentFlow: MojoFlowContext,
+    ): MojoTy {
+        val parameters = genericParameters(base)
+        if (parameters.isEmpty()) return base.withGenericArguments(supplied.map { it.argument })
+
+        val existing = base.genericArguments()
+        if (supplied.isEmpty() && existing.isNotEmpty()) return base
+        if (supplied.isEmpty() && parameters.none { (it as? MojoParameterDeclaration)?.expression != null }) {
+            return base
+        }
+        val arguments = parameters.mapIndexed { index, parameter ->
+            existing.getOrNull(index)
+                ?: (parameter as? MojoParameterDeclaration)?.expression?.let {
+                    genericArgument(it, currentFlow, owner)
+                }
+                ?: MojoGenericArg.Hole(parameter)
+        }.toMutableList()
+        val partiallySpecialized = existing.isNotEmpty()
+        var positionalIndex = 0
+        for (argument in supplied) {
+            val index = argument.name?.let { name ->
+                parameters.indexOfFirst { it.parameterName() == name }.takeIf { it >= 0 }
+            } ?: if (partiallySpecialized) {
+                arguments.indices.firstOrNull { it >= positionalIndex && arguments[it] is MojoGenericArg.Hole }
+                    ?: arguments.indices.firstOrNull { arguments[it] is MojoGenericArg.Hole }
+            } else {
+                positionalIndex.takeIf { it < arguments.size }
+            }
+            if (index == null) continue
+            arguments[index] = when (val suppliedArgument = argument.argument) {
+                is MojoGenericArg.Hole -> MojoGenericArg.Hole(parameters[index])
+                else -> suppliedArgument
+            }
+            positionalIndex = index + 1
+        }
+        return base.withGenericArguments(arguments)
+    }
+
+    private fun genericParameters(type: MojoTy): List<PsiElement> = when (type) {
+        is MojoTy.Struct -> type.declaration.structHeader.typeParameterList
+            ?.parameterDeclarationList
+            .orEmpty()
+        is MojoTy.Trait -> type.declaration.typeParameterList
+            ?.parameterDeclarationList
+            .orEmpty()
+        else -> emptyList()
     }
 
     private fun resolveTypeName(identifier: MojoNameIdentifier, function: MojoFunctionDeclaration): MojoTy {
@@ -867,7 +1218,7 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
             resolvedReferences[identifier] = listOf(target)
             return typeRepresentedByTarget(target) ?: MojoTy.Unknown
         }
-        return if (name in BUILTIN_TYPES) MojoTy.Builtin(name) else MojoTy.Unknown
+        return if (name in MOJO_BUILTIN_TYPE_NAMES) MojoTy.Builtin(name) else MojoTy.Unknown
     }
 
     private fun typeRepresentedByTarget(target: PsiElement): MojoTy? = when (target) {
@@ -941,13 +1292,50 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
 
     private fun compatibilityScore(expected: MojoTy, actual: MojoTy): Int = when {
         expected == MojoTy.Unknown || actual == MojoTy.Unknown -> 4
-        expected is MojoTy.TypeParameter -> 0
+        expected is MojoTy.TypeParameter -> 3
         expected == actual -> 0
+        expected is MojoTy.Builtin && actual is MojoTy.Builtin && expected.name == actual.name ->
+            genericCompatibilityScore(expected.genericArguments, actual.genericArguments)
+        expected is MojoTy.Struct && actual is MojoTy.Struct && expected.declaration == actual.declaration ->
+            genericCompatibilityScore(expected.genericArguments, actual.genericArguments)
+        expected is MojoTy.Trait && actual is MojoTy.Trait && expected.declaration == actual.declaration ->
+            genericCompatibilityScore(expected.genericArguments, actual.genericArguments)
         actual == MojoTy.Builtin("IntLiteral") && expected.isIntegerType() -> 1
         actual == MojoTy.Builtin("FloatLiteral") && expected.isFloatType() -> 1
         actual == MojoTy.Builtin("StringLiteral") && expected == MojoTy.Builtin("String") -> 1
         expected is MojoTy.Union && expected.variants.any { compatibilityScore(it, actual) < INCOMPATIBLE } -> 2
         else -> INCOMPATIBLE
+    }
+
+    private fun genericCompatibilityScore(
+        expected: List<MojoGenericArg>,
+        actual: List<MojoGenericArg>,
+    ): Int {
+        if (expected.isEmpty()) return if (actual.isEmpty()) 0 else 2
+        if (expected.size != actual.size) return INCOMPATIBLE
+        var score = 0
+        for (index in expected.indices) {
+            val argumentScore = when (val expectedArgument = expected[index]) {
+                is MojoGenericArg.Type -> when (val actualArgument = actual[index]) {
+                    is MojoGenericArg.Type -> compatibilityScore(expectedArgument.type, actualArgument.type)
+                    else -> INCOMPATIBLE
+                }
+                is MojoGenericArg.Value -> when (val actualArgument = actual[index]) {
+                    is MojoGenericArg.Value -> if (expectedArgument.sameComptimeValue(actualArgument)) 0 else INCOMPATIBLE
+                    else -> INCOMPATIBLE
+                }
+                is MojoGenericArg.Hole, MojoGenericArg.Unknown -> 4
+            }
+            if (argumentScore == INCOMPATIBLE) return INCOMPATIBLE
+            score += argumentScore
+        }
+        return score
+    }
+
+    private fun genericMatchPenalty(type: MojoTy): Int = when (type) {
+        is MojoTy.TypeParameter -> 3
+        MojoTy.Unknown -> 4
+        else -> 0
     }
 
     private data class CallMatch(
@@ -958,15 +1346,26 @@ private class MojoInferenceContext(private val owner: MojoFunctionDeclaration) {
 
     private companion object {
         const val INCOMPATIBLE = 1_000_000
+        val MLIR_INTEGER_VALUE = Regex("_mlir_value\\s*=\\s*(-?\\d+)")
         val COMPARISON_OPERATORS = setOf("<", "<=", "==", "!=", "<>", ">=", ">", "in", "not in", "is", "is not")
-        val BUILTIN_TYPES = setOf(
-            "Bool", "Byte", "DType", "SIMD", "SIMDLength", "Scalar", "Int", "Int8", "Int16", "Int32",
-            "Int64", "Int128", "Int256", "UInt", "UInt8", "UInt16", "UInt32", "UInt64", "UInt128",
-            "UInt256", "BFloat16", "Float8_e4m3fn", "Float8_e4m3fnuz", "Float8_e5m2", "Float8_e5m2fnuz",
-            "Float8_e8m0fnu", "Float16", "Float32", "Float64", "String", "StringLiteral", "IntLiteral",
-            "FloatLiteral", "NoneType", "Never", "Tuple", "List", "Dict",
-        )
+        val COMPTIME_UNARY_OPERATORS = setOf("+", "-", "~")
     }
+}
+
+private fun PsiElement.parameterName(): String? = when (this) {
+    is MojoParameterDeclaration -> nameIdentifier?.identifierText()
+    is MojoNameIdentifier -> identifierText()
+    else -> null
+}
+
+private fun PsiElement.parameterReferenceTarget(): PsiElement =
+    (this as? MojoParameterDeclaration)?.nameIdentifier ?: this
+
+private fun PsiElement.genericArgumentDeclaration(): PsiElement = when (this) {
+    is MojoNameIdentifier -> (parent as? MojoParameterDeclaration)
+        ?: (parent as? MojoDeclarationName)?.parent
+        ?: this
+    else -> this
 }
 
 private fun MojoTy.isTypeConstraint(): Boolean = when (this) {
@@ -986,21 +1385,101 @@ private fun MojoTy.declarationOwners(): List<PsiElement> = when (this) {
     else -> emptyList()
 }
 
-private fun MojoTy.withArguments(arguments: List<MojoTy>): MojoTy {
-    if (arguments.isEmpty()) return this
-    return when (this) {
-        is MojoTy.Builtin -> copy(arguments = arguments)
-        is MojoTy.Struct -> copy(arguments = arguments)
-        is MojoTy.Trait -> copy(arguments = arguments)
-        else -> this
+private fun MojoTy.genericArguments(): List<MojoGenericArg> = when (this) {
+    is MojoTy.Builtin -> genericArguments
+    is MojoTy.Struct -> genericArguments
+    is MojoTy.Trait -> genericArguments
+    else -> emptyList()
+}
+
+private fun MojoTy.withGenericArguments(arguments: List<MojoGenericArg>): MojoTy = when (this) {
+    is MojoTy.Builtin -> copy(genericArguments = arguments)
+    is MojoTy.Struct -> copy(genericArguments = arguments)
+    is MojoTy.Trait -> copy(genericArguments = arguments)
+    else -> this
+}
+
+private fun MojoTy.genericParameterSubstitution(): Map<PsiElement, MojoGenericArg> {
+    if (this is MojoTy.TypeValue) return instanceType.genericParameterSubstitution()
+    val parameters = when (this) {
+        is MojoTy.Struct -> declaration.structHeader.typeParameterList?.parameterDeclarationList.orEmpty()
+        is MojoTy.Trait -> declaration.typeParameterList?.parameterDeclarationList.orEmpty()
+        else -> emptyList()
     }
+    return parameters.zip(genericArguments()).mapNotNull { (parameter, argument) ->
+        if (argument is MojoGenericArg.Hole || argument == MojoGenericArg.Unknown) null else parameter to argument
+    }.toMap()
 }
 
 private fun MojoTy.Function.withoutReceiver(): MojoTy.Function =
     if (parameters.firstOrNull()?.name == "self") copy(parameters = parameters.drop(1)) else this
 
-private fun MojoTy.isIntegerType(): Boolean =
-    this is MojoTy.Builtin && (name == "Int" || name.startsWith("Int") || name.startsWith("UInt"))
+private data class SuppliedGenericArgument(
+    val name: String?,
+    val argument: MojoGenericArg,
+)
 
-private fun MojoTy.isFloatType(): Boolean =
-    this is MojoTy.Builtin && (name.startsWith("Float") || name == "BFloat16")
+private fun binaryResultType(left: MojoTy, right: MojoTy): MojoTy {
+    if (left.acceptsLiteral(right)) return left
+    if (right.acceptsLiteral(left)) return right
+
+    val leftSimd = left.simdShape()
+    val rightSimd = right.simdShape()
+    if (leftSimd != null && rightSimd != null && leftSimd.dtype.sameComptimeValue(rightSimd.dtype)) {
+        return when {
+            leftSimd.length.sameComptimeValue(rightSimd.length) -> left
+            leftSimd.length.isComptimeInteger(1) -> right
+            rightSimd.length.isComptimeInteger(1) -> left
+            else -> left.join(right)
+        }
+    }
+    return left.join(right)
+}
+
+private data class SimdShape(
+    val dtype: MojoGenericArg.Value,
+    val length: MojoGenericArg.Value,
+)
+
+private fun MojoTy.simdShape(): SimdShape? {
+    val name = when (this) {
+        is MojoTy.Builtin -> name
+        is MojoTy.Struct -> declaration.name
+        else -> return null
+    }
+    if (name != "SIMD") return null
+    val arguments = genericArguments()
+    val dtype = arguments.getOrNull(0) as? MojoGenericArg.Value ?: return null
+    val length = arguments.getOrNull(1) as? MojoGenericArg.Value ?: return null
+    return SimdShape(dtype, length)
+}
+
+private fun MojoTy.isIntegerType(): Boolean {
+    if (displayName in INTEGER_TYPE_NAMES) return true
+    val dtype = simdShape()?.dtype?.displayName ?: return false
+    return dtype == "DType.int" || dtype.startsWith("DType.int") || dtype.startsWith("DType.uint")
+}
+
+private fun MojoTy.isFloatType(): Boolean {
+    if (displayName in FLOAT_TYPE_NAMES) return true
+    val dtype = simdShape()?.dtype?.displayName ?: return false
+    return dtype.startsWith("DType.float") || dtype == "DType.bfloat16"
+}
+
+private fun MojoTy.acceptsLiteral(literal: MojoTy): Boolean = when (literal) {
+    MojoTy.Builtin("IntLiteral") -> isIntegerType() || isFloatType()
+    MojoTy.Builtin("FloatLiteral") -> isFloatType()
+    MojoTy.Builtin("StringLiteral") -> this == MojoTy.Builtin("String")
+    else -> false
+}
+
+private val INTEGER_TYPE_NAMES = setOf(
+    "Byte", "Int", "Int8", "Int16", "Int32", "Int64", "Int128", "Int256", "IntLiteral",
+    "UInt", "UInt8", "UInt16", "UInt32", "UInt64", "UInt128", "UInt256",
+)
+
+private val FLOAT_TYPE_NAMES = setOf(
+    "BFloat16", "Float4_e2m1fn", "Float6_e2m3fn", "Float6_e3m2fn", "Float8_e3m4",
+    "Float8_e4m3fn", "Float8_e4m3fnuz", "Float8_e5m2", "Float8_e5m2fnuz", "Float8_e8m0fnu",
+    "Float16", "Float32", "Float64", "FloatLiteral",
+)

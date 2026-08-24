@@ -1,6 +1,7 @@
 package com.github.petrmakhnev.intellijmojo.lang.ide
 
 import com.github.petrmakhnev.intellijmojo.lang.MojoFileType
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoCallExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoComptimeStatement
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoAssignmentStatement
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoFunctionDeclaration
@@ -66,6 +67,73 @@ class MojoFindUsagesTest : BasePlatformTestCase() {
         assertEquals(3, usages.size)
     }
 
+    fun testFindsDirectConstructorCallButNotTypeReference() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct Widget:
+                def __init__(out self):
+                    pass
+
+            def make() -> Widget:
+                return Widget()
+            """.trimIndent(),
+        )
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val constructor = PsiTreeUtil.findChildrenOfType(file, MojoFunctionDeclaration::class.java)
+            .single { it.name == "__init__" }
+
+        assertEquals(1, myFixture.findUsages(constructor).size)
+    }
+
+    fun testFindsImportedConstructorCalls() {
+        val library = myFixture.addFileToProject(
+            "library.mojo",
+            """
+            struct Widget:
+                def __init__(out self):
+                    pass
+            """.trimIndent(),
+        )
+        myFixture.configureByText(
+            MojoFileType,
+            """
+            import library
+            from library import Widget
+
+            def direct() -> Widget:
+                return Widget()
+
+            def qualified():
+                library.Widget()
+            """.trimIndent(),
+        )
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val constructor = PsiTreeUtil.findChildrenOfType(library, MojoFunctionDeclaration::class.java)
+            .single { it.name == "__init__" }
+
+        assertEquals(2, myFixture.findUsages(constructor).size)
+    }
+
+    fun testFindsParametricConstructorCallButNotParametricTypeReference() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct Box[T]:
+                def __init__(out self):
+                    pass
+
+            def make() -> Box[Int]:
+                return Box[Int]()
+            """.trimIndent(),
+        )
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val constructor = PsiTreeUtil.findChildrenOfType(file, MojoFunctionDeclaration::class.java)
+            .single { it.name == "__init__" }
+
+        assertEquals(1, myFixture.findUsages(constructor).size)
+    }
+
     fun testReportsMojoSymbolKinds() {
         val file = myFixture.configureByText(
             MojoFileType,
@@ -80,7 +148,7 @@ class MojoFindUsagesTest : BasePlatformTestCase() {
             trait Printable:
                 pass
 
-            type Index = Int
+            comptime Index = Int
             comptime LIMIT = 16
             """.trimIndent(),
         )
@@ -129,6 +197,33 @@ class MojoFindUsagesTest : BasePlatformTestCase() {
 
         assertEquals(2, myFixture.findUsages(parameter.nameIdentifier!!).size)
         assertEquals(2, myFixture.findUsages(local).size)
+    }
+
+    fun testNestedLocalFunctionCallResolvesAndFindsUsage() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct Vector[length: Int]:
+                def join(self, other: Self) -> Self:
+                    def indices() -> StaticTuple[SIMDLength, 2 * Int(Self.length)]:
+                        var res = StaticTuple[SIMDLength, 2 * Int(Self.length)](0)
+                        for i in range(len(res)):
+                            res[i] = i
+                        return res
+
+                    return self._shuffle_list[2 * Self.length, indices()](other)
+            """.trimIndent(),
+        )
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+
+        val declaration = PsiTreeUtil.findChildrenOfType(file, MojoFunctionDeclaration::class.java)
+            .single { it.name == "indices" }
+        val call = PsiTreeUtil.findChildrenOfType(file, MojoCallExpression::class.java)
+            .single { it.expression.text == "indices" }
+
+        assertSame(declaration, call.expression.reference!!.resolve())
+        assertEquals(1, myFixture.findUsages(declaration).size)
+        assertEquals(1, myFixture.findUsages(declaration.nameIdentifier!!).size)
     }
 
     fun testFindsMethodUsagesThroughSelfAndInferredReceiver() {
@@ -207,5 +302,50 @@ class MojoFindUsagesTest : BasePlatformTestCase() {
 
         assertTrue(MojoFindUsagesProvider().canFindUsagesFor(field))
         assertEquals(4, myFixture.findUsages(field).size)
+    }
+
+    fun testFindsStructParameterAndAssociatedComptimeTypeUsages() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct StridedRange[dtype: DType = DType.int]:
+                comptime Element = Scalar[Self.dtype]
+                var element: Self.Element
+
+                def inspect(self):
+                    var kind = Self.dtype
+            """.trimIndent(),
+        )
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+
+        val dtype = PsiTreeUtil.findChildrenOfType(file, MojoParameterDeclaration::class.java)
+            .single { it.nameIdentifier?.text == "dtype" }
+            .nameIdentifier!!
+        val element = PsiTreeUtil.findChildrenOfType(file, MojoComptimeStatement::class.java)
+            .single { it.name == "Element" }
+
+        assertEquals(2, myFixture.findUsages(dtype).size)
+        assertEquals(1, myFixture.findUsages(element).size)
+    }
+
+    fun testAssociatedComptimeTypeIsFindUsagesTargetAtDeclaration() {
+        myFixture.configureByText(
+            MojoFileType,
+            """
+            struct StridedRange:
+                comptime <caret>ReversedType = StridedRange
+
+                def reversed(self) -> Self.ReversedType:
+                    return Self.ReversedType()
+            """.trimIndent(),
+        )
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+
+        val target = myFixture.elementAtCaret
+
+        assertInstanceOf(target, com.github.petrmakhnev.intellijmojo.lang.psi.MojoNameIdentifier::class.java)
+        assertTrue(MojoFindUsagesProvider().canFindUsagesFor(target))
+        assertEquals("Type alias", MojoFindUsagesProvider().getType(target))
+        assertEquals(2, myFixture.findUsages(target).size)
     }
 }

@@ -1,9 +1,11 @@
 package com.github.petrmakhnev.intellijmojo.lang.resolve
 
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoMemberExpression
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoDeclarationName
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoFunctionDeclaration
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoLiteralExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoNameIdentifier
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoNamedElement
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoReferenceExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoStructDeclaration
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoTraitDeclaration
@@ -114,9 +116,12 @@ object MojoGlobalReferences {
 
         override fun isReferenceTo(target: PsiElement): Boolean {
             if (!element.isValid) return false
+            val declarationTarget = target.declarationOwner()
             return resolver(element).any { resolved ->
-                element.manager.areElementsEquivalent(resolved, target) ||
-                    resolved.constructorOwner()?.let { element.manager.areElementsEquivalent(it, target) } == true
+                element.manager.areElementsEquivalent(resolved, declarationTarget) ||
+                    resolved.constructorOwner()?.let {
+                        element.manager.areElementsEquivalent(it, declarationTarget)
+                    } == true
             }
         }
 
@@ -137,6 +142,12 @@ object MojoGlobalReferences {
                 ancestor = ancestor.parent
             }
             return null
+        }
+
+        private fun PsiElement.declarationOwner(): PsiElement {
+            val identifier = this as? MojoNameIdentifier ?: return this
+            val declarationName = identifier.parent as? MojoDeclarationName ?: return this
+            return declarationName.parent as? MojoNamedElement ?: this
         }
     }
 }

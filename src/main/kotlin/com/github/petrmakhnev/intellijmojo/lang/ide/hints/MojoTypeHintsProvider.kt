@@ -3,11 +3,15 @@
 package com.github.petrmakhnev.intellijmojo.lang.ide.hints
 
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoAssignmentStatement
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoComptimeStatement
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoDeclarationName
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoFile
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoNameIdentifier
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoParameterDeclaration
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoTypes
 import com.github.petrmakhnev.intellijmojo.lang.resolve.MojoBindingKind
 import com.github.petrmakhnev.intellijmojo.lang.resolve.staticBindingKind
+import com.github.petrmakhnev.intellijmojo.lang.type.MojoGenericArg
 import com.github.petrmakhnev.intellijmojo.lang.type.MojoTy
 import com.github.petrmakhnev.intellijmojo.lang.type.displayName
 import com.github.petrmakhnev.intellijmojo.lang.type.mojoInference
@@ -39,6 +43,12 @@ class MojoTypeHintsProvider : InlayHintsProvider {
         val identifier = element as? MojoNameIdentifier ?: return
         if (!identifier.isValid || identifier.text == "_") return
 
+        val comptime = (identifier.parent as? MojoDeclarationName)?.parent as? MojoComptimeStatement
+        if (comptime != null && comptime.declarationName?.nameIdentifier == identifier) {
+            collectComptimeType(identifier, comptime, sink)
+            return
+        }
+
         val kind = identifier.staticBindingKind()
         val parameter = identifier.parent as? MojoParameterDeclaration
         val isImplicitReceiver = kind == MojoBindingKind.PARAMETER &&
@@ -60,6 +70,27 @@ class MojoTypeHintsProvider : InlayHintsProvider {
         val type = inference.getType(identifier) ?: return
         if (type.containsUnknown()) return
 
+        showType(identifier, type, sink)
+    }
+
+    private fun collectComptimeType(
+        identifier: MojoNameIdentifier,
+        statement: MojoComptimeStatement,
+        sink: InlayTreeSink,
+    ) {
+        val equalsOffset = statement.node.findChildByType(MojoTypes.EQ)?.startOffset ?: return
+        if (statement.typeExpressionList.any { it.textOffset < equalsOffset }) return
+
+        val inference = statement.mojoInference ?: return
+        if (!inference.isLocalDeclaration(statement)) return
+
+        val type = inference.getType(statement) ?: return
+        if (type.containsUnknown()) return
+
+        showType(identifier, type, sink)
+    }
+
+    private fun showType(identifier: MojoNameIdentifier, type: MojoTy, sink: InlayTreeSink) {
         sink.addPresentation(
             position = InlineInlayPosition(identifier.textRange.endOffset, true),
             hasBackground = true,
@@ -71,15 +102,21 @@ class MojoTypeHintsProvider : InlayHintsProvider {
 
     private fun MojoTy.containsUnknown(): Boolean = when (this) {
         MojoTy.Unknown -> true
-        is MojoTy.Builtin -> arguments.any { it.containsUnknown() }
-        is MojoTy.Struct -> arguments.any { it.containsUnknown() }
-        is MojoTy.Trait -> arguments.any { it.containsUnknown() }
+        is MojoTy.Builtin -> genericArguments.any { it.containsUnknown() }
+        is MojoTy.Struct -> genericArguments.any { it.containsUnknown() }
+        is MojoTy.Trait -> genericArguments.any { it.containsUnknown() }
         is MojoTy.Tuple -> elements.any { it.containsUnknown() }
         is MojoTy.Union -> variants.any { it.containsUnknown() }
         is MojoTy.Function -> parameters.any { it.type.containsUnknown() } || returnType.containsUnknown()
         is MojoTy.Overload -> candidates.any { it.containsUnknown() }
         is MojoTy.TypeValue -> instanceType.containsUnknown()
         else -> false
+    }
+
+    private fun MojoGenericArg.containsUnknown(): Boolean = when (this) {
+        is MojoGenericArg.Type -> type.containsUnknown()
+        is MojoGenericArg.Value -> false
+        is MojoGenericArg.Hole, MojoGenericArg.Unknown -> true
     }
 
     private companion object {

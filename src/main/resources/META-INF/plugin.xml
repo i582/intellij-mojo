@@ -11,6 +11,8 @@
     <resource-bundle>messages.MojoBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
+        <projectService
+                serviceImplementation="com.github.petrmakhnev.intellijmojo.lang.psi.MojoPsiManager"/>
         <fileType
                 name="Mojo"
                 language="Mojo"
@@ -29,6 +31,14 @@
                 implementationClass="com.github.petrmakhnev.intellijmojo.lang.highlighting.MojoSemanticAnnotator"/>
         <colorSettingsPage
                 implementation="com.github.petrmakhnev.intellijmojo.ide.colors.MojoColorSettingsPage"/>
+        <projectConfigurable
+                instance="com.github.petrmakhnev.intellijmojo.ide.settings.MojoProjectConfigurable"
+                groupId="language"
+                id="language.mojo"
+                bundle="messages.MojoBundle"
+                key="plugin.name"/>
+        <additionalLibraryRootsProvider
+                implementation="com.github.petrmakhnev.intellijmojo.ide.settings.MojoStdlibLibraryRootsProvider"/>
         <lang.braceMatcher
                 language="Mojo"
                 implementationClass="com.github.petrmakhnev.intellijmojo.lang.editor.MojoBraceMatcher"/>
@@ -46,6 +56,10 @@
         <lang.findUsagesProvider
                 language="Mojo"
                 implementationClass="com.github.petrmakhnev.intellijmojo.lang.ide.MojoFindUsagesProvider"/>
+        <findUsagesHandlerFactory
+                implementation="com.github.petrmakhnev.intellijmojo.lang.ide.MojoFindUsagesHandlerFactory"/>
+        <referencesSearch
+                implementation="com.github.petrmakhnev.intellijmojo.lang.ide.MojoConstructorReferencesSearch"/>
         <codeInsight.declarativeInlayProvider
                 language="Mojo"
                 implementationClass="com.github.petrmakhnev.intellijmojo.lang.ide.hints.MojoTypeHintsProvider"
@@ -62,6 +76,9 @@
                     nameKey="inlay.hints.types.variables"
                     descriptionKey="inlay.hints.types.variables.description"/>
         </codeInsight.declarativeInlayProvider>
+        <codeInsight.typeInfo
+                language="Mojo"
+                implementationClass="com.github.petrmakhnev.intellijmojo.lang.ide.hints.MojoTypeProvider"/>
         <indexPatternBuilder
                 implementation="com.github.petrmakhnev.intellijmojo.lang.indexing.MojoIndexPatternBuilder"/>
         <stubIndex implementation="com.github.petrmakhnev.intellijmojo.lang.stub.index.MojoNamedElementIndex"/>

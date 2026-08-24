@@ -226,6 +226,21 @@ class MojoSemanticHighlightingTest : BasePlatformTestCase() {
         assertColor(source, highlights, "Element", 1, MojoColor.TYPE_REFERENCE)
     }
 
+    fun testNamedTypeAndCallableArgumentsUseKeywordArgumentColor() {
+        val source = """
+            def intrinsic[has_side_effect: Bool = True](value: Int, flag: Bool = False):
+                pass
+
+            def main(value: Int):
+                intrinsic[has_side_effect=False](value, flag=False)
+        """.trimIndent()
+        myFixture.configureByText(MojoFileType, source)
+
+        val highlights = myFixture.doHighlighting()
+        assertColor(source, highlights, "has_side_effect", 1, MojoColor.KEYWORD_ARGUMENT)
+        assertColor(source, highlights, "flag", 1, MojoColor.KEYWORD_ARGUMENT)
+    }
+
     private fun assertColor(
         source: String,
         highlights: List<HighlightInfo>,
