@@ -2,10 +2,12 @@ package com.github.petrmakhnev.intellijmojo.lang.ide
 
 import com.github.petrmakhnev.intellijmojo.lang.MojoFileType
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoComptimeStatement
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoAssignmentStatement
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoFunctionDeclaration
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoParameterDeclaration
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoStructDeclaration
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoTraitDeclaration
+import com.github.petrmakhnev.intellijmojo.lang.resolve.bindingIdentifiers
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
@@ -95,8 +97,8 @@ class MojoFindUsagesTest : BasePlatformTestCase() {
             .associateBy { it.name }
 
         assertTrue(provider.canFindUsagesFor(function))
-        assertFalse(provider.canFindUsagesFor(method))
-        assertFalse(provider.canFindUsagesFor(parameter.nameIdentifier!!))
+        assertTrue(provider.canFindUsagesFor(method))
+        assertTrue(provider.canFindUsagesFor(parameter.nameIdentifier!!))
         assertEquals("Function", provider.getType(function))
         assertEquals("Struct", provider.getType(struct))
         assertEquals("Trait", provider.getType(trait))
@@ -104,5 +106,106 @@ class MojoFindUsagesTest : BasePlatformTestCase() {
         assertEquals("Constant", provider.getType(comptime.getValue("LIMIT")))
         assertEquals("build", provider.getDescriptiveName(function))
         assertEquals("build", provider.getNodeText(function, false))
+    }
+
+    fun testFindsParameterAndLocalVariableUsages() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            def main(input: Int):
+                var value = input
+                print(value)
+                print(input, value)
+            """.trimIndent(),
+        )
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+
+        val parameter = PsiTreeUtil.findChildOfType(file, MojoParameterDeclaration::class.java)!!
+        val local = PsiTreeUtil.findChildrenOfType(file, com.github.petrmakhnev.intellijmojo.lang.psi.MojoNameIdentifier::class.java)
+            .single { identifier ->
+                identifier.text == "value" &&
+                    identifier.parent is com.github.petrmakhnev.intellijmojo.lang.psi.MojoPattern
+            }
+
+        assertEquals(2, myFixture.findUsages(parameter.nameIdentifier!!).size)
+        assertEquals(2, myFixture.findUsages(local).size)
+    }
+
+    fun testFindsMethodUsagesThroughSelfAndInferredReceiver() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct Point:
+                def reset(mut self):
+                    pass
+
+                def reset_twice(mut self):
+                    self.reset()
+                    self.reset()
+
+            def main():
+                var point = Point()
+                point.reset()
+            """.trimIndent(),
+        )
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val method = PsiTreeUtil.findChildrenOfType(file, MojoFunctionDeclaration::class.java)
+            .single { it.name == "reset" }
+
+        assertEquals(3, myFixture.findUsages(method).size)
+    }
+
+    fun testFindsMethodUsagesAcrossImportedReceiverType() {
+        val library = myFixture.addFileToProject(
+            "geometry.mojo",
+            """
+            struct Point:
+                def reset(mut self):
+                    pass
+            """.trimIndent(),
+        )
+        myFixture.configureByText(
+            MojoFileType,
+            """
+            from geometry import Point
+
+            def reset_point(point: Point):
+                point.reset()
+
+            def main():
+                var point = Point()
+                point.reset()
+            """.trimIndent(),
+        )
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val method = PsiTreeUtil.findChildrenOfType(library, MojoFunctionDeclaration::class.java)
+            .single { it.name == "reset" }
+
+        assertEquals(2, myFixture.findUsages(method).size)
+    }
+
+    fun testFindsFieldUsagesOnReadsAndAssignmentTargets() {
+        val file = myFixture.configureByText(
+            MojoFileType,
+            """
+            struct Point:
+                var x: Int
+
+                def update(mut self):
+                    self.x = self.x + 1
+
+            def main():
+                var point = Point()
+                point.x = point.x + 1
+            """.trimIndent(),
+        )
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val field = PsiTreeUtil.findChildrenOfType(file, MojoAssignmentStatement::class.java)
+            .first()
+            .bindingIdentifiers()
+            .single()
+
+        assertTrue(MojoFindUsagesProvider().canFindUsagesFor(field))
+        assertEquals(4, myFixture.findUsages(field).size)
     }
 }

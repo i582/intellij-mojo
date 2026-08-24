@@ -37,9 +37,28 @@
         <lang.quoteHandler
                 language="Mojo"
                 implementationClass="com.github.petrmakhnev.intellijmojo.lang.editor.MojoQuoteHandler"/>
+        <lang.foldingBuilder
+                language="Mojo"
+                implementationClass="com.github.petrmakhnev.intellijmojo.lang.editor.MojoFoldingBuilder"/>
         <lang.findUsagesProvider
                 language="Mojo"
                 implementationClass="com.github.petrmakhnev.intellijmojo.lang.ide.MojoFindUsagesProvider"/>
+        <codeInsight.declarativeInlayProvider
+                language="Mojo"
+                implementationClass="com.github.petrmakhnev.intellijmojo.lang.ide.hints.MojoTypeHintsProvider"
+                group="TYPES_GROUP"
+                isEnabledByDefault="true"
+                bundle="messages.MojoBundle"
+                nameKey="inlay.hints.types"
+                descriptionKey="inlay.hints.types.description"
+                providerId="mojo.types.hints">
+            <option
+                    optionId="hint.type.variable"
+                    enabledByDefault="true"
+                    bundle="messages.MojoBundle"
+                    nameKey="inlay.hints.types.variables"
+                    descriptionKey="inlay.hints.types.variables.description"/>
+        </codeInsight.declarativeInlayProvider>
         <indexPatternBuilder
                 implementation="com.github.petrmakhnev.intellijmojo.lang.indexing.MojoIndexPatternBuilder"/>
         <stubIndex implementation="com.github.petrmakhnev.intellijmojo.lang.stub.index.MojoNamedElementIndex"/>

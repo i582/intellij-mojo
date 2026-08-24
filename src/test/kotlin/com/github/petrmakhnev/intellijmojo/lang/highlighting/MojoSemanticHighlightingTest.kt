@@ -43,6 +43,7 @@ class MojoSemanticHighlightingTest : BasePlatformTestCase() {
         assertColor(source, highlights, "dx", 0, MojoColor.MUTABLE_PARAMETER)
         assertColor(source, highlights, "Int", 0, MojoColor.BUILTIN_TYPE)
         assertColor(source, highlights, "result", 0, MojoColor.MUTABLE_VARIABLE)
+        assertColor(source, highlights, "result", 1, MojoColor.MUTABLE_VARIABLE)
         assertColor(source, highlights, "x", 1, MojoColor.FIELD)
         assertColor(source, highlights, "print", 0, MojoColor.FUNCTION_CALL)
         assertColor(source, highlights, "value", 0, MojoColor.KEYWORD_ARGUMENT)
@@ -155,7 +156,7 @@ class MojoSemanticHighlightingTest : BasePlatformTestCase() {
                     pass
 
             comptime ANSWER = 42
-            type Identifier = Int
+            comptime Identifier = Int
             """.trimIndent(),
         )
         val source = """
@@ -190,6 +191,39 @@ class MojoSemanticHighlightingTest : BasePlatformTestCase() {
         assertColor(source, highlights, "ANSWER", 1, MojoColor.CONSTANT)
         assertColor(source, highlights, "Identifier", 0, MojoColor.TYPE_ALIAS)
         assertColor(source, highlights, "Identifier", 1, MojoColor.TYPE_REFERENCE)
+    }
+
+    fun testComptimeColorFollowsInferredValueCategory() {
+        val source = """
+            struct Progress:
+                def advance(mut self):
+                    comptime BLOCK = "▇"
+                    comptime Element = Int
+                    var value: Element = 1
+                    print(BLOCK * value)
+        """.trimIndent()
+        myFixture.configureByText(MojoFileType, source)
+
+        val highlights = myFixture.doHighlighting()
+        assertColor(source, highlights, "BLOCK", 0, MojoColor.CONSTANT)
+        assertColor(source, highlights, "BLOCK", 1, MojoColor.CONSTANT)
+        assertColor(source, highlights, "Element", 0, MojoColor.TYPE_ALIAS)
+        assertColor(source, highlights, "Element", 1, MojoColor.TYPE_REFERENCE)
+    }
+
+    fun testAssociatedComptimeTypeAndStructParametersUseSemanticColors() {
+        val source = """
+            struct StridedRange[dtype: DType = DType.int]:
+                comptime Element = Scalar[Self.dtype]
+                var element: Self.Element
+        """.trimIndent()
+        myFixture.configureByText(MojoFileType, source)
+
+        val highlights = myFixture.doHighlighting()
+        assertColor(source, highlights, "dtype", 0, MojoColor.TYPE_PARAMETER)
+        assertColor(source, highlights, "dtype", 1, MojoColor.TYPE_PARAMETER)
+        assertColor(source, highlights, "Element", 0, MojoColor.TYPE_ALIAS)
+        assertColor(source, highlights, "Element", 1, MojoColor.TYPE_REFERENCE)
     }
 
     private fun assertColor(

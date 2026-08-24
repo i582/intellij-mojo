@@ -2,6 +2,7 @@ package com.github.petrmakhnev.intellijmojo.lang.resolve
 
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoDottedName
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoFile
+import com.github.petrmakhnev.intellijmojo.lang.psi.MojoAssignmentStatement
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoCallExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoExpression
 import com.github.petrmakhnev.intellijmojo.lang.psi.MojoFunctionDeclaration
@@ -31,13 +32,23 @@ internal object MojoGlobalSymbolResolver {
     fun resolveMember(place: MojoMemberExpression): List<PsiElement> {
         val owners = resolveExpression(place.expression)
         if (owners.isEmpty()) return emptyList()
-        return resolveFromModules(
-            owners,
-            place.nameIdentifier.text.removeSurrounding("`"),
+        return resolveMember(place, owners)
+    }
+
+    fun resolveMember(place: MojoMemberExpression, owners: Collection<PsiElement>): List<PsiElement> {
+        val name = place.nameIdentifier.text.removeSurrounding("`")
+        val moduleMembers = resolveFromModules(
+            owners.filter { it is PsiFile || it is PsiDirectory },
+            name,
             place,
             linkedSetOf(),
         )
+        val typeMembers = resolveTypeMember(owners, name)
+        return (moduleMembers + typeMembers).distinctBy(::elementKey)
     }
+
+    fun resolveTypeMember(owners: Collection<PsiElement>, name: String): List<PsiElement> =
+        owners.flatMap { owner -> findTypeMembers(owner, name) }.distinctBy(::elementKey)
 
     fun resolveCallAware(place: MojoExpression, targets: List<PsiElement>): List<PsiElement> {
         if (!place.isCallTarget()) return targets
@@ -186,6 +197,42 @@ internal object MojoGlobalSymbolResolver {
                 is MojoStructDeclaration, is MojoTraitDeclaration -> return ancestor
             }
             ancestor = ancestor.parent
+        }
+        return null
+    }
+
+    private fun findTypeMembers(owner: PsiElement, name: String): List<PsiElement> {
+        if (owner !is MojoStructDeclaration && owner !is MojoTraitDeclaration) return emptyList()
+
+        val parameters = when (owner) {
+            is MojoStructDeclaration -> owner.structHeader.typeParameterList?.parameterDeclarationList.orEmpty()
+            is MojoTraitDeclaration -> owner.typeParameterList?.parameterDeclarationList.orEmpty()
+            else -> emptyList()
+        }.mapNotNull { it.nameIdentifier }
+            .filter { it.text.removeSurrounding("`") == name }
+        val declarations = PsiTreeUtil.findChildrenOfType(owner, MojoNamedElement::class.java)
+            .filter { it.name == name }
+            .filter { declaration ->
+                when (declaration) {
+                    is MojoFunctionDeclaration -> declaration.declaringType() == owner
+                    else -> nearestDeclaringType(declaration) == owner
+                }
+            }
+        val fields = PsiTreeUtil.findChildrenOfType(owner, MojoAssignmentStatement::class.java)
+            .filter { nearestDeclaringType(it) == owner && PsiTreeUtil.getParentOfType(it, MojoFunctionDeclaration::class.java) == null }
+            .flatMap { it.bindingIdentifiers() }
+            .filter { it.text.removeSurrounding("`") == name }
+        return parameters + declarations + fields
+    }
+
+    private fun nearestDeclaringType(element: PsiElement): PsiElement? {
+        var current = element.parent
+        while (current != null) {
+            when (current) {
+                is MojoFunctionDeclaration -> return null
+                is MojoStructDeclaration, is MojoTraitDeclaration -> return current
+            }
+            current = current.parent
         }
         return null
     }

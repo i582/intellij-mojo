@@ -2,6 +2,10 @@ package com.github.petrmakhnev.intellijmojo.lang.highlighting
 
 import com.github.petrmakhnev.intellijmojo.ide.colors.MojoColor
 import com.github.petrmakhnev.intellijmojo.lang.psi.*
+import com.github.petrmakhnev.intellijmojo.lang.resolve.MojoBindingKind
+import com.github.petrmakhnev.intellijmojo.lang.resolve.staticBindingKind
+import com.github.petrmakhnev.intellijmojo.lang.type.MojoTy
+import com.github.petrmakhnev.intellijmojo.lang.type.mojoInference
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.annotation.HighlightSeverity
@@ -23,9 +27,10 @@ class MojoSemanticAnnotator : Annotator {
 
     private fun colorFor(name: MojoNameIdentifier): MojoColor? {
         val parent = name.parent
+        if (parent is MojoDeclarationName) return declarationColor(parent)
+        if (parent is MojoParameterDeclaration) return parameterColor(parent)
+        bindingColor(name)?.let { return it }
         return when (parent) {
-            is MojoDeclarationName -> declarationColor(parent)
-            is MojoParameterDeclaration -> parameterColor(parent)
             is MojoNamedParameter -> MojoColor.KEYWORD_ARGUMENT
             is MojoImportItem -> resolvedColor(name, importSite = true)
             is MojoMemberExpression -> memberColor(parent)
@@ -43,11 +48,7 @@ class MojoSemanticAnnotator : Annotator {
         is MojoStructHeader -> MojoColor.STRUCT
         is MojoTraitDeclaration -> MojoColor.TRAIT
         is MojoMlirRegionDeclaration -> MojoColor.MLIR_SYMBOL
-        is MojoComptimeStatement -> if (owner.node.findChildByType(MojoTypes.TYPE) != null) {
-            MojoColor.TYPE_ALIAS
-        } else {
-            MojoColor.CONSTANT
-        }
+        is MojoComptimeStatement -> comptimeDeclarationColor(owner)
         else -> null
     }
 
@@ -141,11 +142,8 @@ class MojoSemanticAnnotator : Annotator {
         }
         is MojoStructDeclaration -> MojoColor.STRUCT
         is MojoTraitDeclaration -> if (importSite) MojoColor.TRAIT else MojoColor.TYPE_REFERENCE
-        is MojoComptimeStatement -> if (target.hasToken(MojoTypes.TYPE)) {
-            if (importSite) MojoColor.TYPE_ALIAS else MojoColor.TYPE_REFERENCE
-        } else {
-            MojoColor.CONSTANT
-        }
+        is MojoComptimeStatement -> comptimeReferenceColor(target, importSite)
+        is MojoParameterDeclaration -> parameterColor(target)
         is MojoMlirRegionDeclaration -> MojoColor.MLIR_SYMBOL
         is MojoNameIdentifier -> targetIdentifierColor(target, sourceName, callSite, typeSite, importSite)
         is PsiFile, is PsiDirectory -> MojoColor.MODULE
@@ -171,11 +169,7 @@ class MojoSemanticAnnotator : Annotator {
                 }
                 is MojoStructHeader -> MojoColor.STRUCT
                 is MojoTraitDeclaration -> if (importSite) MojoColor.TRAIT else MojoColor.TYPE_REFERENCE
-                is MojoComptimeStatement -> if (declaration.hasToken(MojoTypes.TYPE)) {
-                    if (importSite) MojoColor.TYPE_ALIAS else MojoColor.TYPE_REFERENCE
-                } else {
-                    MojoColor.CONSTANT
-                }
+                is MojoComptimeStatement -> comptimeReferenceColor(declaration, importSite)
                 is MojoMlirRegionDeclaration -> MojoColor.MLIR_SYMBOL
                 else -> null
             }
@@ -191,25 +185,99 @@ class MojoSemanticAnnotator : Annotator {
             MojoColor.FUNCTION_CALL
         }
 
+    private fun comptimeDeclarationColor(declaration: MojoComptimeStatement): MojoColor =
+        if (declaration.isTypeValuedComptime()) MojoColor.TYPE_ALIAS else MojoColor.CONSTANT
+
+    private fun comptimeReferenceColor(
+        declaration: MojoComptimeStatement,
+        importSite: Boolean,
+    ): MojoColor = if (declaration.isTypeValuedComptime()) {
+        if (importSite) MojoColor.TYPE_ALIAS else MojoColor.TYPE_REFERENCE
+    } else {
+        MojoColor.CONSTANT
+    }
+
+    private fun MojoComptimeStatement.isTypeValuedComptime(
+        visited: MutableSet<MojoComptimeStatement> = linkedSetOf(),
+    ): Boolean {
+        if (hasToken(MojoTypes.TYPE)) return true
+        if (mojoInference?.getType(this) is MojoTy.TypeValue) return true
+        if (!visited.add(this)) return false
+        if (functionType != null) return true
+
+        val equalsOffset = node.findChildByType(MojoTypes.EQ)?.startOffset
+        if (equalsOffset != null && typeExpressionList.any { it.textOffset > equalsOffset }) return true
+        expression?.let { return it.isTypeValueExpression(visited) }
+
+        val declaredType = typeExpressionList.firstOrNull() ?: return false
+        return PsiTreeUtil.findChildrenOfType(declaredType, MojoNameIdentifier::class.java).any { name ->
+            name.identifierText() == "AnyType" || resolveTargets(name).any { it is MojoTraitDeclaration }
+        }
+    }
+
+    private fun MojoExpression.isTypeValueExpression(visited: MutableSet<MojoComptimeStatement>): Boolean = when (this) {
+        is MojoLiteralExpression -> hasToken(MojoTypes.SELF)
+        is MojoReferenceExpression, is MojoMemberExpression -> {
+            val name = when (this) {
+                is MojoReferenceExpression -> nameIdentifier
+                is MojoMemberExpression -> nameIdentifier
+                else -> error("unreachable")
+            }
+            name.identifierText() in BUILTIN_TYPE_NAMES || resolveTargets(name).any { target ->
+                target is MojoStructDeclaration || target is MojoTraitDeclaration ||
+                    target is MojoComptimeStatement && target.isTypeValuedComptime(visited)
+            }
+        }
+        is MojoSubscriptExpression -> expression.isTypeValueExpression(visited)
+        is MojoTransferExpression -> expression.isTypeValueExpression(visited)
+        is MojoParenthesizedExpression -> expressionList.singleOrNull()?.isTypeValueExpression(visited) == true
+        else -> false
+    }
+
     private fun bindingColor(name: MojoNameIdentifier): MojoColor? {
         if (isAssignmentTargetField(name)) return MojoColor.FIELD
 
-        val assignment = parentOf<MojoAssignmentStatement>(name)
-        if (assignment != null && isAssignmentBinding(name, assignment)) {
-            if (nearestScopeOwner(assignment) is MojoStructDeclaration) return MojoColor.FIELD
-            return if (assignment.hasToken(MojoTypes.VAR)) MojoColor.MUTABLE_VARIABLE else MojoColor.VARIABLE
+        val staticKind = name.staticBindingKind()
+        val kind = staticKind ?: if (name.mojoInference?.isLocalDeclaration(name) == true) {
+            MojoBindingKind.VARIABLE
+        } else {
+            return null
         }
+        return when (kind) {
+            MojoBindingKind.TYPE_PARAMETER,
+            MojoBindingKind.PARAMETER,
+            MojoBindingKind.CAPTURE_PARAMETER,
+            -> (name.parent as? MojoParameterDeclaration)?.let(::parameterColor)
 
-        val loop = parentOf<MojoForStatement>(name)
-        if (loop?.patternList?.let { PsiTreeUtil.isAncestor(it, name, false) } == true) {
-            return if (loop.hasToken(MojoTypes.VAR)) MojoColor.MUTABLE_VARIABLE else MojoColor.VARIABLE
-        }
+            MojoBindingKind.VARIABLE -> {
+                val assignment = parentOf<MojoAssignmentStatement>(name)
+                if (assignment != null && nearestScopeOwner(assignment) is MojoStructDeclaration) {
+                    MojoColor.FIELD
+                } else {
+                    val assignmentExpression = parentOf<MojoAssignmentExpression>(name)
+                    if (staticKind == null || assignment?.hasToken(MojoTypes.VAR) == true ||
+                        assignmentExpression?.hasToken(MojoTypes.VAR) == true
+                    ) {
+                        MojoColor.MUTABLE_VARIABLE
+                    } else {
+                        MojoColor.VARIABLE
+                    }
+                }
+            }
 
-        val comprehension = parentOf<MojoForInClause>(name)
-        if (comprehension?.patternList?.let { PsiTreeUtil.isAncestor(it, name, false) } == true) {
-            return MojoColor.VARIABLE
+            MojoBindingKind.LOOP_VARIABLE -> {
+                val loop = parentOf<MojoForStatement>(name)
+                if (loop?.hasToken(MojoTypes.VAR) == true) MojoColor.MUTABLE_VARIABLE else MojoColor.VARIABLE
+            }
+
+            MojoBindingKind.WITH_VARIABLE,
+            MojoBindingKind.EXCEPTION_VARIABLE,
+            -> MojoColor.MUTABLE_VARIABLE
+
+            MojoBindingKind.COMPREHENSION_VARIABLE,
+            MojoBindingKind.MATCH_VARIABLE,
+            -> MojoColor.VARIABLE
         }
-        return null
     }
 
     private fun isAssignmentTargetField(name: MojoNameIdentifier): Boolean {
@@ -224,13 +292,6 @@ class MojoSemanticAnnotator : Annotator {
         val augmented = parentOf<MojoAugmentedAssignmentStatement>(name) ?: return false
         val rhsStart = augmented.expressionSequence?.textOffset ?: return false
         return name.textOffset < rhsStart
-    }
-
-    private fun isAssignmentBinding(name: MojoNameIdentifier, assignment: MojoAssignmentStatement): Boolean {
-        if (!assignment.hasToken(MojoTypes.VAR) && !assignment.hasToken(MojoTypes.REF)) return false
-        val typeStart = assignment.typeExpression?.textOffset ?: Int.MAX_VALUE
-        val equalsStart = assignment.node.findChildByType(MojoTypes.EQ)?.startOffset ?: Int.MAX_VALUE
-        return name.textOffset < minOf(typeStart, equalsStart)
     }
 
     private fun isCallTarget(expression: MojoExpression): Boolean {
