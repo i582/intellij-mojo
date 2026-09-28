@@ -5,7 +5,7 @@ rootProject.name = "intellij-mojo"
 pluginManagement {
     plugins {
         id("org.jetbrains.kotlin.jvm") version "2.1.20"
-        id("org.jetbrains.grammarkit") version "2023.3.0.1"
+        id("org.jetbrains.grammarkit") version "2023.3.0.4"
     }
 }
 
